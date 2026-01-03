@@ -2,32 +2,228 @@ import streamlit as st
 import pandas as pd
 import sys
 import plotly.express as px
+import plotly.graph_objects as go
 import numpy as np
 import json
 import io
 from datetime import datetime
+import time
 
 # Add src folder to path
 sys.path.append('src')
 
 st.set_page_config(
-    page_title="Finance Research Classifier",
-    page_icon="📊",
-    layout="wide"
+    page_title="Finance Research Hub",
+    page_icon="📈",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# Title with clickable badges
-st.title("📊 Finance Research Paper Classifier & Library")
-st.success("✅ Finance Research Classifier - Ready")
+# Custom CSS for modern styling
+st.markdown("""
+<style>
+    /* Main container */
+    .main {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    /* Card styling */
+    .card {
+        background: white;
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        border: 1px solid #f0f0f0;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        margin-bottom: 20px;
+    }
+    
+    .card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    }
+    
+    /* Paper item styling */
+    .paper-item {
+        background: #f8fafc;
+        border-left: 4px solid #667eea;
+        border-radius: 12px;
+        padding: 20px;
+        margin: 12px 0;
+        transition: all 0.2s ease;
+    }
+    
+    .paper-item:hover {
+        background: #f1f5f9;
+        border-left-color: #764ba2;
+    }
+    
+    /* Title styling */
+    .paper-title {
+        color: #1e293b;
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        line-height: 1.4;
+    }
+    
+    .paper-title a {
+        color: #1e293b;
+        text-decoration: none;
+    }
+    
+    .paper-title a:hover {
+        color: #667eea;
+    }
+    
+    /* Authors styling */
+    .paper-authors {
+        color: #64748b;
+        font-size: 14px;
+        margin-bottom: 12px;
+        font-style: italic;
+    }
+    
+    /* Abstract styling */
+    .paper-abstract {
+        color: #475569;
+        font-size: 14px;
+        line-height: 1.6;
+        margin: 12px 0;
+        padding: 12px;
+        background: white;
+        border-radius: 8px;
+        border-left: 3px solid #e2e8f0;
+    }
+    
+    /* Badge styling */
+    .badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+        margin-right: 8px;
+        margin-bottom: 8px;
+    }
+    
+    .badge-primary {
+        background: #e0e7ff;
+        color: #3730a3;
+    }
+    
+    .badge-secondary {
+        background: #f1f5f9;
+        color: #475569;
+    }
+    
+    .badge-success {
+        background: #dcfce7;
+        color: #166534;
+    }
+    
+    /* Button styling */
+    .stButton > button {
+        border-radius: 12px;
+        padding: 10px 24px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Header styling */
+    .main-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 40px 0;
+        border-radius: 0 0 24px 24px;
+        margin-bottom: 32px;
+    }
+    
+    /* Tab styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 12px 12px 0 0;
+        padding: 12px 24px;
+        font-weight: 500;
+    }
+    
+    /* Metric cards */
+    .metric-card {
+        background: white;
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+        text-align: center;
+        border: 1px solid #f1f5f9;
+    }
+    
+    .metric-value {
+        font-size: 32px;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 8px 0;
+    }
+    
+    .metric-label {
+        font-size: 14px;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    /* Search input */
+    .stTextInput > div > div > input {
+        border-radius: 12px;
+        border: 2px solid #e2e8f0;
+        padding: 12px 16px;
+        font-size: 14px;
+    }
+    
+    .stTextInput > div > div > input:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    /* Selectbox styling */
+    .stSelectbox > div > div > div {
+        border-radius: 12px;
+        border: 2px solid #e2e8f0;
+    }
+    
+    /* Expander styling */
+    .streamlit-expanderHeader {
+        border-radius: 12px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        font-weight: 600;
+    }
+    
+    /* Loading spinner */
+    .stSpinner > div {
+        border-top-color: #667eea !important;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-# Display versions with icons
-col1, col2, col3 = st.columns(3)
-with col1:
-    st.markdown(f"**Streamlit** {st.__version__}")
-with col2:
-    st.markdown(f"**Pandas** {pd.__version__}")
-with col3:
-    st.markdown(f"**Numpy** {np.__version__}")
+# Title with modern gradient
+st.markdown("""
+<div class="main-header">
+    <div style="max-width: 1200px; margin: 0 auto; padding: 0 20px;">
+        <h1 style="margin: 0; font-size: 42px; font-weight: 700; line-height: 1.2;">📈 Finance Research Hub</h1>
+        <p style="margin: 12px 0 0 0; font-size: 18px; opacity: 0.9; font-weight: 400;">
+            Discover, classify, and explore cutting-edge finance research papers
+        </p>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 # ===== LOAD RESEARCH PAPERS FROM JSON =====
 @st.cache_data
@@ -43,10 +239,22 @@ def load_research_papers():
         if 'published' in papers_df.columns:
             papers_df['published_date'] = pd.to_datetime(papers_df['published'])
             papers_df['year_month'] = papers_df['published_date'].dt.strftime('%Y-%m')
+            papers_df['date_display'] = papers_df['published_date'].dt.strftime('%b %d, %Y')
         
         # Clean up category names
         if 'category' in papers_df.columns:
             papers_df['category_clean'] = papers_df['category'].str.replace('_', ' ').str.title()
+        
+        # Add color mapping for categories
+        category_colors = {
+            'Computational Finance': '#667eea',
+            'General Finance': '#764ba2',
+            'Mathematical Finance': '#f59e0b',
+            'Portfolio Management': '#10b981',
+            'Pricing of Securities': '#ef4444',
+            'Risk Management': '#8b5cf6'
+        }
+        papers_df['category_color'] = papers_df['category'].map(category_colors)
         
         return papers_df, papers
     except Exception as e:
@@ -56,48 +264,114 @@ def load_research_papers():
 # Load papers
 papers_df, papers_list = load_research_papers()
 
-# ===== RESEARCH LIBRARY FUNCTIONS =====
+# ===== RESEARCH LIBRARY FUNCTIONS WITH MODERN DESIGN =====
 def display_research_library():
-    """Display the research library interface"""
-    st.header("📚 Research Library")
+    """Display the research library interface with modern design"""
     
-    # Display statistics
+    # Header with stats
+    st.markdown("""
+    <div style="margin-bottom: 32px;">
+        <h2 style="color: #1e293b; font-size: 28px; font-weight: 700; margin-bottom: 8px;">
+            📚 Research Library
+        </h2>
+        <p style="color: #64748b; font-size: 16px; margin-bottom: 24px;">
+            Browse and explore finance research papers from arXiv
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Display statistics in modern cards
     if not papers_df.empty:
         stats_cols = st.columns(4)
         with stats_cols[0]:
-            st.metric("Total Papers", len(papers_df))
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value">{len(papers_df)}</div>
+                <div class="metric-label">Total Papers</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
         with stats_cols[1]:
             unique_categories = papers_df['category'].nunique() if 'category' in papers_df.columns else 0
-            st.metric("Categories", unique_categories)
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value">{unique_categories}</div>
+                <div class="metric-label">Categories</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
         with stats_cols[2]:
             if 'year' in papers_df.columns:
                 recent_year = papers_df['year'].max()
-                st.metric("Latest Year", recent_year)
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-value">{recent_year}</div>
+                    <div class="metric-label">Latest Year</div>
+                </div>
+                """, unsafe_allow_html=True)
+        
         with stats_cols[3]:
             if 'authors' in papers_df.columns:
                 avg_authors = papers_df['authors'].apply(lambda x: len(x) if isinstance(x, list) else 1).mean()
-                st.metric("Avg Authors", f"{avg_authors:.1f}")
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-value" style="font-size: 28px;">{avg_authors:.1f}</div>
+                    <div class="metric-label">Avg Authors</div>
+                </div>
+            """, unsafe_allow_html=True)
     
-    # Search and filter section
+    # Search and filter section in a card
     with st.container():
-        st.subheader("🔍 Search & Filter")
+        st.markdown("""
+        <div class="card" style="margin-top: 24px;">
+            <h3 style="color: #1e293b; font-size: 20px; font-weight: 600; margin-bottom: 20px;">
+                🔍 Search & Filter Papers
+            </h3>
+        """, unsafe_allow_html=True)
         
+        # Search row
         search_cols = st.columns([3, 1, 1, 1])
         with search_cols[0]:
-            search_query = st.text_input("Search papers (title, authors, abstract)", "")
+            search_query = st.text_input(
+                "Search papers by title, authors, or abstract",
+                placeholder="Type keywords to search...",
+                key="library_search"
+            )
         
         with search_cols[1]:
             if 'category' in papers_df.columns:
                 categories = sorted(papers_df['category'].dropna().unique().tolist())
-                selected_category = st.selectbox("Category", ["All"] + categories)
+                selected_category = st.selectbox(
+                    "Category",
+                    ["All Categories"] + categories,
+                    key="category_filter"
+                )
         
         with search_cols[2]:
             if 'year' in papers_df.columns:
                 years = sorted(papers_df['year'].dropna().unique().tolist(), reverse=True)
-                selected_year = st.selectbox("Year", ["All"] + [str(y) for y in years])
+                selected_year = st.selectbox(
+                    "Year",
+                    ["All Years"] + [str(y) for y in years],
+                    key="year_filter"
+                )
         
         with search_cols[3]:
-            sort_by = st.selectbox("Sort by", ["Newest", "Oldest", "Title A-Z", "Title Z-A"])
+            sort_options = {
+                "Newest First": "Newest",
+                "Oldest First": "Oldest",
+                "Title (A-Z)": "Title A-Z",
+                "Title (Z-A)": "Title Z-A",
+                "Most Authors": "Authors Desc",
+                "Fewest Authors": "Authors Asc"
+            }
+            sort_by = st.selectbox(
+                "Sort by",
+                list(sort_options.keys()),
+                key="sort_filter"
+            )
+        
+        st.markdown("</div>", unsafe_allow_html=True)
     
     # Apply filters
     filtered_df = papers_df.copy()
@@ -113,1032 +387,597 @@ def display_research_library():
             filtered_df = filtered_df[mask]
         
         # Apply category filter
-        if 'category' in filtered_df.columns and selected_category != "All":
+        if 'category' in filtered_df.columns and selected_category != "All Categories":
             filtered_df = filtered_df[filtered_df['category'] == selected_category]
         
         # Apply year filter
-        if 'year' in filtered_df.columns and selected_year != "All":
+        if 'year' in filtered_df.columns and selected_year != "All Years":
             filtered_df = filtered_df[filtered_df['year'] == int(selected_year)]
         
         # Apply sorting
-        if sort_by == "Newest":
+        if sort_by == "Newest First":
             if 'published_date' in filtered_df.columns:
                 filtered_df = filtered_df.sort_values('published_date', ascending=False)
-        elif sort_by == "Oldest":
+        elif sort_by == "Oldest First":
             if 'published_date' in filtered_df.columns:
                 filtered_df = filtered_df.sort_values('published_date', ascending=True)
-        elif sort_by == "Title A-Z":
+        elif sort_by == "Title (A-Z)":
             filtered_df = filtered_df.sort_values('title')
-        elif sort_by == "Title Z-A":
+        elif sort_by == "Title (Z-A)":
             filtered_df = filtered_df.sort_values('title', ascending=False)
+        elif sort_by == "Most Authors":
+            filtered_df['author_count'] = filtered_df['authors'].apply(lambda x: len(x) if isinstance(x, list) else 1)
+            filtered_df = filtered_df.sort_values('author_count', ascending=False)
+        elif sort_by == "Fewest Authors":
+            filtered_df['author_count'] = filtered_df['authors'].apply(lambda x: len(x) if isinstance(x, list) else 1)
+            filtered_df = filtered_df.sort_values('author_count', ascending=True)
     
     # Display results
     if filtered_df.empty:
-        st.warning("No papers found matching your criteria.")
+        st.markdown("""
+        <div class="card" style="text-align: center; padding: 48px 24px;">
+            <div style="font-size: 48px; margin-bottom: 16px;">🔍</div>
+            <h3 style="color: #475569; margin-bottom: 8px;">No papers found</h3>
+            <p style="color: #94a3b8;">Try adjusting your search or filter criteria</p>
+        </div>
+        """, unsafe_allow_html=True)
     else:
-        st.success(f"Found {len(filtered_df)} papers")
+        # Results header
+        st.markdown(f"""
+        <div style="display: flex; justify-content: space-between; align-items: center; margin: 32px 0 16px 0;">
+            <div>
+                <h3 style="color: #1e293b; font-size: 20px; font-weight: 600; margin: 0;">
+                    📄 Found {len(filtered_df)} papers
+                </h3>
+                <p style="color: #64748b; margin: 4px 0 0 0; font-size: 14px;">
+                    {search_query and f'Searched for: "{search_query}" • ' or ''}
+                    {selected_category != "All Categories" and f'Category: {selected_category} • ' or ''}
+                    {selected_year != "All Years" and f'Year: {selected_year} • ' or ''}
+                    Sorted by: {sort_by}
+                </p>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button onclick="window.scrollTo(0, 0)" style="
+                    background: #f1f5f9;
+                    border: none;
+                    border-radius: 8px;
+                    padding: 8px 16px;
+                    color: #475569;
+                    cursor: pointer;
+                    font-size: 14px;
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                ">
+                    ⬆️ Scroll to top
+                </button>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
         
         # Display papers in a nice format
         for idx, paper in filtered_df.iterrows():
-            with st.expander(f"📄 **{paper.get('title', 'Untitled')}**", expanded=False):
-                col1, col2 = st.columns([3, 1])
-                
-                with col1:
-                    # Paper title and authors
-                    st.markdown(f"### {paper.get('title', 'Untitled')}")
-                    
-                    # Authors
-                    authors = paper.get('authors', [])
-                    if authors:
-                        authors_str = ", ".join(authors) if isinstance(authors, list) else str(authors)
-                        st.markdown(f"**Authors:** {authors_str}")
-                    
-                    # Year and category
-                    meta_cols = st.columns(3)
-                    with meta_cols[0]:
-                        if 'year' in paper:
-                            st.metric("Year", paper['year'])
-                    with meta_cols[1]:
-                        if 'category' in paper:
-                            st.metric("Category", paper['category'])
-                    with meta_cols[2]:
-                        if 'word_count' in paper:
-                            st.metric("Words", paper['word_count'])
-                    
-                    # Abstract
-                    st.markdown("#### Abstract")
-                    abstract = paper.get('abstract', 'No abstract available')
-                    st.write(abstract[:500] + "..." if len(abstract) > 500 else abstract)
-                    
-                    # Categories
-                    if 'categories' in paper and paper['categories']:
-                        st.markdown("#### Categories")
-                        categories = paper['categories']
-                        if isinstance(categories, list):
-                            categories_str = ", ".join(categories)
-                            st.write(categories_str)
-                
-                with col2:
-                    # Quick actions and links
-                    st.markdown("#### 🔗 Quick Links")
-                    
-                    # arXiv link
-                    if 'arxiv_url' in paper and paper['arxiv_url']:
-                        st.link_button("📄 arXiv", paper['arxiv_url'])
-                    
-                    # PDF link
-                    if 'pdf_url' in paper and paper['pdf_url']:
-                        st.link_button("📥 PDF", paper['pdf_url'])
-                    
-                    # DOI link
-                    if 'doi' in paper and paper['doi']:
-                        st.link_button("🔗 DOI", f"https://doi.org/{paper['doi']}")
-                    
-                    # Additional info
-                    st.markdown("---")
-                    if 'comment' in paper and paper['comment']:
-                        st.caption(f"**Note:** {paper['comment']}")
-                    
-                    # Classify this paper button
-                    if st.button("🤖 Classify this paper", key=f"classify_{paper.get('id', idx)}"):
-                        st.session_state.selected_paper_for_classification = paper.get('title', '')
-                        st.session_state.paper_abstract_for_classification = paper.get('abstract', '')
-                        st.rerun()
-                
-                st.markdown("---")
-
-# ===== MOCK MODEL FUNCTION (Replace with your actual model) =====
-def classify_with_confidence(text, top_k=5, improve_confidence=True):
-    """
-    Mock classification function with improved confidence simulation
-    Replace with your actual ML model
-    """
-    # 50 finance categories with Wikipedia links
-    finance_categories = [
-        "Quantitative Finance",
-        "Behavioral Finance", 
-        "Corporate Finance",
-        "Asset Pricing",
-        "Financial Econometrics",
-        "Banking", 
-        "Insurance",
-        "Financial Markets",
-        "Investment Analysis",
-        "Risk Management",
-        "Financial Regulation",
-        "Fintech",
-        "Cryptocurrency",
-        "Sustainable Finance",
-        "International Finance",
-        "Public Finance",
-        "Personal Finance",
-        "Real Estate Finance",
-        "Derivatives",
-        "Fixed Income",
-        "Financial Engineering",
-        "Market Microstructure",
-        "Financial Modeling",
-        "Credit Risk",
-        "Liquidity Risk",
-        "Operational Risk",
-        "Portfolio Theory",
-        "Capital Structure",
-        "Mergers and Acquisitions",
-        "Venture Capital",
-        "Private Equity",
-        "Hedge Funds",
-        "Financial Technology",
-        "Blockchain in Finance",
-        "AI in Finance",
-        "Machine Learning in Finance",
-        "Financial Planning",
-        "Wealth Management",
-        "Financial Analysis",
-        "Accounting Standards",
-        "Auditing",
-        "Taxation",
-        "Development Finance",
-        "Microfinance",
-        "Islamic Finance",
-        "Financial Crises",
-        "Monetary Policy",
-        "Fiscal Policy",
-        "Financial Stability",
-        "Financial Inclusion"
-    ]
-    
-    # Wikipedia links for each category (for reference)
-    category_links = {
-        "Quantitative Finance": "https://en.wikipedia.org/wiki/Quantitative_analysis_(finance)",
-        "Behavioral Finance": "https://en.wikipedia.org/wiki/Behavioral_finance",
-        "Corporate Finance": "https://en.wikipedia.org/wiki/Corporate_finance",
-        "Asset Pricing": "https://en.wikipedia.org/wiki/Asset_pricing",
-        "Financial Econometrics": "https://en.wikipedia.org/wiki/Financial_econometrics",
-        "Banking": "https://en.wikipedia.org/wiki/Banking",
-        "Financial Markets": "https://en.wikipedia.org/wiki/Financial_market",
-        "Risk Management": "https://en.wikipedia.org/wiki/Risk_management",
-        "Fintech": "https://en.wikipedia.org/wiki/Fintech",
-        "Cryptocurrency": "https://en.wikipedia.org/wiki/Cryptocurrency",
-        "Sustainable Finance": "https://en.wikipedia.org/wiki/Sustainable_finance",
-        "International Finance": "https://en.wikipedia.org/wiki/International_finance",
-        "Public Finance": "https://en.wikipedia.org/wiki/Public_finance",
-        "Derivatives": "https://en.wikipedia.org/wiki/Derivative_(finance)",
-        "Portfolio Theory": "https://en.wikipedia.org/wiki/Modern_portfolio_theory",
-        "Financial Crises": "https://en.wikipedia.org/wiki/Financial_crisis",
-        "Monetary Policy": "https://en.wikipedia.org/wiki/Monetary_policy",
-        "Fiscal Policy": "https://en.wikipedia.org/wiki/Fiscal_policy"
-    }
-    
-    # Generate more realistic confidence scores
-    np.random.seed(hash(text) % 10000)
-    
-    if improve_confidence:
-        # Generate higher, more realistic confidence scores
-        base_scores = np.random.dirichlet(np.ones(len(finance_categories)) * 0.3)
-        
-        # Boost top categories for better differentiation
-        sorted_indices = np.argsort(base_scores)[::-1]
-        boost_factor = np.linspace(1.5, 1.0, len(base_scores))
-        
-        adjusted_scores = base_scores.copy()
-        for idx, boost in zip(sorted_indices, boost_factor):
-            adjusted_scores[idx] *= boost
-        
-        # Normalize to sum to 1
-        scores = adjusted_scores / adjusted_scores.sum()
-    else:
-        scores = np.random.dirichlet(np.ones(len(finance_categories)) * 0.1)
-    
-    # Sort and get top k
-    indices = np.argsort(scores)[::-1][:top_k]
-    
-    results = []
-    for idx in indices:
-        category = finance_categories[idx]
-        confidence = float(scores[idx] * 100)
-        # Add small random variation for more realistic distribution
-        confidence += np.random.uniform(-2, 2)
-        confidence = max(0, min(100, confidence))  # Clamp between 0-100
-        
-        # Get Wikipedia link if available
-        wiki_link = category_links.get(category, "https://en.wikipedia.org/wiki/Finance")
-        
-        results.append({
-            "category": category,
-            "confidence": confidence,
-            "score": float(scores[idx]),
-            "wiki_link": wiki_link
-        })
-    
-    return results
-
-# Function to display classification results (same as before, but I'm keeping it for completeness)
-def display_classification_results(top_results, file_name="", abstract_text=""):
-    """
-    Display classification results with enhanced visualization and clickable links
-    """
-    top_category = top_results[0]
-    
-    # Determine color based on confidence
-    if top_category["confidence"] > 75:
-        confidence_color = "#28a745"  # Green
-        confidence_level = "High"
-        confidence_icon = "✅"
-    elif top_category["confidence"] > 50:
-        confidence_color = "#ffc107"  # Orange
-        confidence_level = "Medium"
-        confidence_icon = "⚠️"
-    else:
-        confidence_color = "#dc3545"  # Red
-        confidence_level = "Low"
-        confidence_icon = "❌"
-    
-    # Display main category with enhanced styling
-    st.markdown(f"""
-    <div style="background:linear-gradient(135deg, {confidence_color}10, {confidence_color}05); 
-                padding:20px; border-radius:12px; border-left:6px solid {confidence_color}; 
-                margin:15px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-        <div style="display:flex; align-items:center; gap:15px;">
-            <div style="font-size:32px;">{confidence_icon}</div>
-            <div>
-                <h3 style="margin:0 0 8px 0; color:#1a1a1a;">🏷️ Predicted Category: {top_category['category']}</h3>
-                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                    <div style="font-size:18px; font-weight:bold; color:{confidence_color};">
-                        Confidence: {top_category['confidence']:.2f}%
+            # Create paper card
+            paper_html = f"""
+            <div class="paper-item">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                    <div style="flex: 1;">
+                        <div class="paper-title">
+                            <span style="color: #667eea; margin-right: 8px;">📄</span>
+                            {paper.get('title', 'Untitled')}
+                        </div>
+                        <div class="paper-authors">
+                            👥 {', '.join(paper.get('authors', [])) if isinstance(paper.get('authors', []), list) else paper.get('authors', 'Unknown')}
+                        </div>
                     </div>
-                    <div style="padding:4px 12px; background-color:{confidence_color}20; 
-                                color:{confidence_color}; border-radius:20px; font-size:14px;">
-                        {confidence_level} Confidence
+                    <div style="text-align: right; min-width: 120px;">
+                        <span class="badge badge-primary" style="background-color: {paper.get('category_color', '#e0e7ff')}20; color: {paper.get('category_color', '#3730a3')}; border: 1px solid {paper.get('category_color', '#3730a3')}40;">
+                            {paper.get('category', 'Unknown')}
+                        </span>
                     </div>
-                    <a href="{top_category.get('wiki_link', 'https://en.wikipedia.org/wiki/Finance')}" 
-                       target="_blank" 
-                       style="padding:4px 12px; background-color:#007bff20; 
-                              color:#007bff; border-radius:20px; font-size:14px;
-                              text-decoration:none;">
-                        📚 Learn more
+                </div>
+                
+                <div style="display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;">
+                    <span class="badge badge-secondary">
+                        📅 {paper.get('date_display', 'Unknown date')}
+                    </span>
+                    <span class="badge badge-secondary">
+                        🏷️ arXiv: {paper.get('arxiv_id', 'N/A')}
+                    </span>
+                    <span class="badge badge-secondary">
+                        📝 {paper.get('word_count', 0)} words
+                    </span>
+                </div>
+                
+                <div class="paper-abstract">
+                    <div style="font-weight: 600; color: #475569; margin-bottom: 8px; font-size: 13px;">
+                        ABSTRACT
+                    </div>
+                    {paper.get('abstract', 'No abstract available')}
+                </div>
+                
+                <div style="display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap;">
+            """
+            
+            # Add links
+            if 'arxiv_url' in paper and paper['arxiv_url']:
+                paper_html += f"""
+                    <a href="{paper['arxiv_url']}" target="_blank" style="
+                        background: #e0e7ff;
+                        color: #3730a3;
+                        text-decoration: none;
+                        padding: 6px 16px;
+                        border-radius: 8px;
+                        font-size: 13px;
+                        font-weight: 500;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 6px;
+                        transition: all 0.2s ease;
+                    " onmouseover="this.style.background='#c7d2fe'; this.style.transform='translateY(-1px)'"
+                    onmouseout="this.style.background='#e0e7ff'; this.style.transform='translateY(0)'">
+                        📄 arXiv
                     </a>
+                """
+            
+            if 'pdf_url' in paper and paper['pdf_url']:
+                paper_html += f"""
+                    <a href="{paper['pdf_url']}" target="_blank" style="
+                        background: #fee2e2;
+                        color: #991b1b;
+                        text-decoration: none;
+                        padding: 6px 16px;
+                        border-radius: 8px;
+                        font-size: 13px;
+                        font-weight: 500;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 6px;
+                        transition: all 0.2s ease;
+                    " onmouseover="this.style.background='#fecaca'; this.style.transform='translateY(-1px)'"
+                    onmouseout="this.style.background='#fee2e2'; this.style.transform='translateY(0)'">
+                        📥 PDF
+                    </a>
+                """
+            
+            if 'doi' in paper and paper['doi']:
+                paper_html += f"""
+                    <a href="https://doi.org/{paper['doi']}" target="_blank" style="
+                        background: #dbeafe;
+                        color: #1e40af;
+                        text-decoration: none;
+                        padding: 6px 16px;
+                        border-radius: 8px;
+                        font-size: 13px;
+                        font-weight: 500;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 6px;
+                        transition: all 0.2s ease;
+                    " onmouseover="this.style.background='#bfdbfe'; this.style.transform='translateY(-1px)'"
+                    onmouseout="this.style.background='#dbeafe'; this.style.transform='translateY(0)'">
+                        🔗 DOI
+                    </a>
+                """
+            
+            # Add classify button
+            paper_html += f"""
+                    <button onclick="classifyPaper('{paper.get('title', '').replace("'", "\\'")}', '{paper.get('abstract', '').replace("'", "\\'")[:500]}')" style="
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        border: none;
+                        padding: 6px 16px;
+                        border-radius: 8px;
+                        font-size: 13px;
+                        font-weight: 500;
+                        cursor: pointer;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 6px;
+                        transition: all 0.2s ease;
+                    " onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.3)'"
+                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                        🤖 Classify
+                    </button>
                 </div>
             </div>
-        </div>
+            """
+            
+            st.markdown(paper_html, unsafe_allow_html=True)
+        
+        # Add JavaScript for classify button
+        st.markdown("""
+        <script>
+        function classifyPaper(title, abstract) {
+            // Store paper data in Streamlit session state
+            window.parent.postMessage({
+                type: 'streamlit:setComponentValue',
+                value: {
+                    title: title,
+                    abstract: abstract
+                }
+            }, '*');
+            
+            // Show notification
+            const notification = document.createElement('div');
+            notification.innerHTML = `
+                <div style="
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    padding: 12px 24px;
+                    border-radius: 12px;
+                    box-shadow: 0 8px 30px rgba(102, 126, 234, 0.3);
+                    z-index: 9999;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    animation: slideIn 0.3s ease;
+                ">
+                    <div style="font-size: 20px;">🤖</div>
+                    <div>
+                        <div style="font-weight: 600; font-size: 14px;">Redirecting to classifier...</div>
+                        <div style="font-size: 12px; opacity: 0.9;">Paper: ${title.substring(0, 50)}...</div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+        
+        // Add animations
+        const style = document.createElement('style');
+        style.innerHTML = `
+            @keyframes slideIn {
+                from {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+            @keyframes slideOut {
+                from {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+                to {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+        </script>
+        """, unsafe_allow_html=True)
+
+# ===== MODERN STATISTICS DASHBOARD =====
+def display_statistics():
+    """Display statistics with modern visualization"""
+    
+    if papers_df.empty:
+        st.warning("No research papers loaded.")
+        return
+    
+    st.markdown("""
+    <div style="margin-bottom: 32px;">
+        <h2 style="color: #1e293b; font-size: 28px; font-weight: 700; margin-bottom: 8px;">
+            📊 Research Analytics
+        </h2>
+        <p style="color: #64748b; font-size: 16px; margin-bottom: 24px;">
+            Insights and trends from the research collection
+        </p>
     </div>
     """, unsafe_allow_html=True)
     
-    # Progress bar
-    progress_value = top_category["confidence"] / 100
-    st.progress(progress_value, text=f"Model Confidence: {top_category['confidence']:.1f}%")
+    # Quick stats row
+    col1, col2, col3, col4 = st.columns(4)
     
-    # Quick action buttons
-    st.markdown("### 🔗 Quick Actions")
-    action_cols = st.columns(4)
+    with col1:
+        total_papers = len(papers_df)
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value" style="color: #667eea;">{total_papers}</div>
+            <div class="metric-label">Total Papers</div>
+        </div>
+        """, unsafe_allow_html=True)
     
-    with action_cols[0]:
-        if st.button("📖 Category Info", key=f"info_{file_name}", use_container_width=True):
-            st.info(f"**{top_category['category']}** - This category focuses on...")
+    with col2:
+        total_authors = papers_df['authors'].apply(lambda x: len(x) if isinstance(x, list) else 1).sum()
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value" style="color: #764ba2;">{total_authors}</div>
+            <div class="metric-label">Total Authors</div>
+        </div>
+        """, unsafe_allow_html=True)
     
-    with action_cols[1]:
-        st.link_button("🌐 Wikipedia", top_category.get('wiki_link', 'https://en.wikipedia.org/wiki/Finance'))
+    with col3:
+        total_words = papers_df['word_count'].sum()
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value" style="color: #10b981;">{total_words:,}</div>
+            <div class="metric-label">Total Words</div>
+        </div>
+        """, unsafe_allow_html=True)
     
-    with action_cols[2]:
-        st.link_button("📚 Google Scholar", f"https://scholar.google.com/scholar?q={top_category['category'].replace(' ', '+')}+finance")
+    with col4:
+        avg_confidence = papers_df['word_count'].mean() if 'word_count' in papers_df.columns else 0
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value" style="color: #f59e0b;">{avg_confidence:.0f}</div>
+            <div class="metric-label">Avg Words</div>
+        </div>
+        """, unsafe_allow_html=True)
     
-    with action_cols[3]:
-        st.link_button("📊 More Papers", f"https://www.jstor.org/action/doBasicSearch?Query={top_category['category'].replace(' ', '+')}")
+    # Charts row
+    chart_col1, chart_col2 = st.columns(2)
     
-    # Create tabs for different views
-    tab1, tab2, tab3, tab4 = st.tabs(["📊 Top Categories", "📈 Visualization", "📥 Export Results", "📋 Report & Links"])
-    
-    with tab1:
-        # Display top categories in a table with clickable links
-        st.subheader(f"Top {len(top_results)} Predictions")
-        
-        # Create DataFrame with clickable links
-        df_results = pd.DataFrame(top_results)
-        df_results.index = range(1, len(df_results) + 1)
-        
-        # Add clickable category column
-        df_results['category_with_link'] = df_results.apply(
-            lambda row: f"[{row['category']}]({row['wiki_link']})", 
-            axis=1
-        )
-        
-        # Display table
-        st.dataframe(
-            df_results[['category_with_link', 'confidence']],
-            column_config={
-                "category_with_link": st.column_config.TextColumn(
-                    "Category", 
-                    width="large",
-                    help="Click category name to learn more on Wikipedia"
-                ),
-                "confidence": st.column_config.ProgressColumn(
-                    "Confidence (%)",
-                    format="%.2f%%",
-                    min_value=0,
-                    max_value=100
-                )
-            },
-            hide_index=False,
-            use_container_width=True,
-            height=min(400, 45 * len(top_results))
-        )
-        
-        # Useful resource links
-        st.markdown("### 📚 Useful Resources")
-        resource_cols = st.columns(3)
-        
-        with resource_cols[0]:
-            st.markdown("""
-            **Academic Databases:**
-            - [📖 JSTOR](https://www.jstor.org)
-            - [🔬 ScienceDirect](https://www.sciencedirect.com)
-            - [🎓 SSRN](https://www.ssrn.com)
-            """)
-        
-        with resource_cols[1]:
-            st.markdown("""
-            **Finance Portals:**
-            - [📈 Investopedia](https://www.investopedia.com)
-            - [🏦 IMF eLibrary](https://www.elibrary.imf.org)
-            - [🌍 World Bank Open Knowledge](https://openknowledge.worldbank.org)
-            """)
-        
-        with resource_cols[2]:
-            st.markdown("""
-            **Research Tools:**
-            - [🔍 Google Scholar](https://scholar.google.com)
-            - [📊 arXiv Finance](https://arxiv.org/list/q-fin/recent)
-            - [💡 RePEc](https://ideas.repec.org)
-            """)
-        
-        # Confidence assessment
-        with st.container():
-            st.markdown("### 🤖 Model Assessment")
-            cols = st.columns(3)
-            with cols[0]:
-                st.metric("Top Confidence", f"{top_category['confidence']:.1f}%")
-            with cols[1]:
-                gap = top_category['confidence'] - top_results[1]['confidence'] if len(top_results) > 1 else 0
-                st.metric("Confidence Gap", f"{gap:.1f}%")
-            with cols[2]:
-                avg_confidence = df_results['confidence'].mean()
-                st.metric("Avg Top 5", f"{avg_confidence:.1f}%")
-    
-    with tab2:
-        # Visualization
-        st.subheader("📊 Confidence Distribution")
-        
-        fig = px.bar(
-            df_results,
-            x='category',
-            y='confidence',
-            color='confidence',
-            color_continuous_scale=px.colors.sequential.Viridis,
-            text='confidence',
-            labels={'confidence': 'Confidence (%)', 'category': 'Category'},
-            hover_data={'confidence': ':.2f%'}
-        )
-        
-        fig.update_traces(
-            texttemplate='%{text:.2f}%',
-            textposition='outside',
-            marker_line_color='rgb(8,48,107)',
-            marker_line_width=1.5,
-            hovertemplate="<b>%{x}</b><br>Confidence: %{y:.2f}%<extra></extra>"
-        )
-        
-        fig.update_layout(
-            xaxis_tickangle=-45,
-            yaxis_range=[0, 100],
-            showlegend=False,
-            height=400,
-            plot_bgcolor='rgba(0,0,0,0.02)',
-            paper_bgcolor='rgba(0,0,0,0)'
-        )
-        
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # Additional resources
+    with chart_col1:
+        # Category distribution - Pie chart
         st.markdown("""
-        ### 📈 Data Visualization Resources
-        - [Plotly Documentation](https://plotly.com/python/)
-        - [Streamlit Charts Guide](https://docs.streamlit.io/library/api-reference/charts)
-        - [Finance Data APIs](https://www.quandl.com/tools/api)
-        """)
-    
-    with tab3:
-        # Export functionality
-        st.subheader("📥 Export Classification Results")
+        <div class="card" style="margin-top: 24px;">
+            <h3 style="color: #1e293b; font-size: 18px; font-weight: 600; margin-bottom: 20px;">
+                📈 Category Distribution
+            </h3>
+        """, unsafe_allow_html=True)
         
-        # Prepare data for export
-        export_data = {
-            "file_name": file_name,
-            "timestamp": datetime.now().isoformat(),
-            "predicted_category": top_category["category"],
-            "confidence": top_category["confidence"],
-            "confidence_level": confidence_level,
-            "abstract_preview": abstract_text[:200] + "..." if len(abstract_text) > 200 else abstract_text,
-            "all_predictions": [
-                {k: v for k, v in pred.items() if k != 'wiki_link'} 
-                for pred in top_results
-            ],
-            "model_version": "1.0",
-            "export_links": {
-                "wikipedia": top_category.get('wiki_link', ''),
-                "google_scholar": f"https://scholar.google.com/scholar?q={top_category['category'].replace(' ', '+')}",
-                "related_papers": f"https://www.semanticscholar.org/search?q={top_category['category'].replace(' ', '%20')}"
-            }
-        }
-        
-        # Export buttons
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            # CSV Export
-            df_export = pd.DataFrame(top_results)
-            csv_buffer = io.StringIO()
-            df_export.to_csv(csv_buffer, index=False)
-            
-            st.download_button(
-                label="📊 Download CSV",
-                data=csv_buffer.getvalue(),
-                file_name=f"classification_{file_name.replace('.pdf', '')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                mime="text/csv",
-                use_container_width=True,
-                help="Download results as CSV file"
-            )
-        
-        with col2:
-            # JSON Export
-            json_buffer = io.StringIO()
-            json.dump(export_data, json_buffer, indent=2)
-            
-            st.download_button(
-                label="📁 Download JSON",
-                data=json_buffer.getvalue(),
-                file_name=f"classification_{file_name.replace('.pdf', '')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-                mime="application/json",
-                use_container_width=True,
-                help="Download full results as JSON file with links"
-            )
-        
-        with col3:
-            # Markdown Report
-            report_content = f"""# Finance Research Classification Report
-
-## File Information
-- **File**: {file_name}
-- **Date**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-- **Model**: Finance Classifier v1.0
-
-## Classification Results
-- **Primary Category**: {top_category['category']}
-- **Confidence**: {top_category['confidence']:.2f}% ({confidence_level})
-
-## Quick Links
-- Wikipedia: {top_category.get('wiki_link', 'N/A')}
-- Google Scholar: https://scholar.google.com/scholar?q={top_category['category'].replace(' ', '+')}
-- Related Papers: https://www.semanticscholar.org/search?q={top_category['category'].replace(' ', '%20')}
-
-## All Predictions
-"""
-            for i, pred in enumerate(top_results, 1):
-                report_content += f"{i}. {pred['category']}: {pred['confidence']:.2f}%\n"
-            
-            st.download_button(
-                label="📄 Download Report",
-                data=report_content,
-                file_name=f"report_{file_name.replace('.pdf', '')}.md",
-                mime="text/markdown",
-                use_container_width=True
-            )
-        
-        # Online sharing options
-        st.markdown("---")
-        st.markdown("### 🌐 Share Online")
-        share_cols = st.columns(4)
-        
-        with share_cols[0]:
-            st.link_button("📧 Email Results", f"mailto:?subject=Classification Results for {file_name}&body={report_content[:500]}...")
-        
-        with share_cols[1]:
-            st.link_button("💼 LinkedIn", "https://www.linkedin.com/sharing/share-offsite/?url=")
-        
-        with share_cols[2]:
-            st.link_button("🐦 Twitter", f"https://twitter.com/intent/tweet?text=Classified {file_name} as {top_category['category']} with {top_category['confidence']:.1f}% confidence")
-        
-        with share_cols[3]:
-            st.link_button("📚 ResearchGate", "https://www.researchgate.net")
-    
-    with tab4:
-        # Generate a comprehensive report with links
-        st.subheader("📋 Classification Report")
-        
-        report_content = f"""# 📊 Finance Research Classification Report
-
-## 📄 File Information
-- **File Name**: {file_name}
-- **Analysis Date**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-- **Model Version**: Finance Classifier v1.0
-- **Confidence Level**: {confidence_level}
-
-## 🏷️ Classification Results
-- **Primary Category**: {top_category['category']}
-- **Confidence Score**: {top_category['confidence']:.2f}%
-- **Assessment**: {'High reliability - suitable for automated processing' if confidence_level == 'High' else 'Moderate reliability - review recommended' if confidence_level == 'Medium' else 'Low reliability - manual classification required'}
-
-## 🔗 Quick Access Links
-- [🌐 Wikipedia Entry]({top_category.get('wiki_link', 'https://en.wikipedia.org/wiki/Finance')})
-- [📚 Google Scholar Search](https://scholar.google.com/scholar?q={top_category['category'].replace(' ', '+')}+finance)
-- [📊 Related Papers](https://www.semanticscholar.org/search?q={top_category['category'].replace(' ', '%20')})
-- [💾 Download Raw Data](#)
-
-## 📈 Top Predictions
-"""
-        
-        for i, result in enumerate(top_results, 1):
-            report_content += f"{i}. **{result['category']}**: {result['confidence']:.2f}% [Learn more]({result.get('wiki_link', 'https://en.wikipedia.org/wiki/Finance')})\n"
-        
-        report_content += f"""
-## 📝 Abstract Preview
-{abstract_text[:300]}...
-
-## 🤖 Model Notes
-This classification was generated using an AI model trained on 50 finance research categories.
-For questions or corrections, please contact the research team.
-
----
-*Generated by Finance Research Classifier • {datetime.now().strftime('%Y-%m-%d')}*
-"""
-        
-        # Display report preview
-        st.text_area("📋 Report Preview", report_content, height=300)
-        
-        # Download buttons for report
-        col1, col2 = st.columns(2)
-        with col1:
-            st.download_button(
-                label="📥 Download Markdown",
-                data=report_content,
-                file_name=f"classification_report_{file_name.replace('.pdf', '')}.md",
-                mime="text/markdown",
-                use_container_width=True
-            )
-        
-        with col2:
-            # HTML version
-            html_content = f"""<!DOCTYPE html>
-<html>
-<head>
-    <title>Classification Report - {file_name}</title>
-    <meta charset="UTF-8">
-    <style>
-        body {{ font-family: Arial, sans-serif; margin: 40px; }}
-        .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                  color: white; padding: 30px; border-radius: 10px; }}
-        .category {{ background: #f8f9fa; padding: 15px; border-left: 5px solid #007bff; 
-                    margin: 10px 0; border-radius: 5px; }}
-        .link {{ color: #007bff; text-decoration: none; }}
-        .link:hover {{ text-decoration: underline; }}
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>📊 Finance Research Classification Report</h1>
-        <p>Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
-    </div>
-    
-    <h2>📄 File Information</h2>
-    <p><strong>File:</strong> {file_name}</p>
-    
-    <h2>🏷️ Classification Results</h2>
-    <div class="category">
-        <h3>{top_category['category']}</h3>
-        <p>Confidence: {top_category['confidence']:.2f}%</p>
-        <p><a class="link" href="{top_category.get('wiki_link', 'https://en.wikipedia.org/wiki/Finance')}" target="_blank">🌐 Learn more on Wikipedia</a></p>
-    </div>
-    
-    <h2>🔗 Useful Links</h2>
-    <ul>
-        <li><a class="link" href="https://scholar.google.com/scholar?q={top_category['category'].replace(' ', '+')}" target="_blank">📚 Search Google Scholar</a></li>
-        <li><a class="link" href="https://www.jstor.org" target="_blank">📖 Access JSTOR</a></li>
-        <li><a class="link" href="https://arxiv.org/list/q-fin/recent" target="_blank">📈 Browse arXiv Finance</a></li>
-    </ul>
-</body>
-</html>"""
-            
-            st.download_button(
-                label="🌐 Download HTML",
-                data=html_content,
-                file_name=f"report_{file_name.replace('.pdf', '')}.html",
-                mime="text/html",
-                use_container_width=True
-            )
-        
-        # External research links
-        st.markdown("---")
-        st.markdown("### 🎓 External Research Databases")
-        
-        db_cols = st.columns(3)
-        with db_cols[0]:
-            st.markdown("""
-            **Open Access:**
-            - [🔓 arXiv](https://arxiv.org)
-            - [📖 SSRN](https://www.ssrn.com)
-            - [🌍 DOAJ](https://doaj.org)
-            """)
-        
-        with db_cols[1]:
-            st.markdown("""
-            **Commercial:**
-            - [📚 Elsevier](https://www.sciencedirect.com)
-            - [🏛️ Springer](https://link.springer.com)
-            - [🎓 Wiley](https://onlinelibrary.wiley.com)
-            """)
-        
-        with db_cols[2]:
-            st.markdown("""
-            **Finance Specific:**
-            - [💹 NBER](https://www.nber.org)
-            - [🏦 IMF](https://www.imf.org/en/Publications)
-            - [🌐 World Bank](https://documents.worldbank.org)
-            """)
-    
-    # Store in session state for history
-    if 'classification_history' not in st.session_state:
-        st.session_state.classification_history = []
-    
-    st.session_state.classification_history.append({
-        "file_name": file_name,
-        "predicted_category": top_category["category"],
-        "confidence": top_category["confidence"],
-        "timestamp": datetime.now().isoformat(),
-        "abstract_preview": abstract_text[:100] if abstract_text else "",
-        "wiki_link": top_category.get('wiki_link', '')
-    })
-
-# Try to import PDF processor
-try:
-    from pdf_processor import PDFProcessor
-    pdf_processor = PDFProcessor()
-    pdf_available = True
-    st.sidebar.success("✅ PDF processor loaded")
-except ImportError:
-    pdf_available = False
-    st.sidebar.warning("⚠️ PDF processor not available")
-except Exception as e:
-    pdf_available = False
-    st.sidebar.error(f"❌ PDF processor error: {str(e)[:50]}")
-
-# ===== MAIN APP NAVIGATION =====
-st.sidebar.header("📚 Navigation")
-app_mode = st.sidebar.radio(
-    "Choose Mode",
-    ["🏠 Classifier", "📚 Research Library", "📊 Statistics"],
-    help="Switch between classification mode and research library"
-)
-
-# Sidebar Configuration (for classifier mode)
-if app_mode == "🏠 Classifier":
-    with st.sidebar:
-        st.header("⚙️ Configuration")
-        
-        if pdf_available:
-            max_pages = st.slider("Pages to extract", 1, 10, 3)
-            show_raw_text = st.checkbox("Show raw text", False)
-        
-        st.header("📤 Upload Files")
-        uploaded_files = st.file_uploader(
-            "Choose PDF files",
-            type=['pdf'],
-            accept_multiple_files=True,
-            help="Upload academic papers or research reports (max 200MB per file)"
-        )
-        
-        # Classification settings
-        st.header("🤖 Classification Settings")
-        top_k = st.slider("Number of top categories", 3, 10, 5)
-        improve_model = st.checkbox("Enhance confidence scores", True)
-        
-        st.header("📊 Display Options")
-        show_visualizations = st.checkbox("Show visualizations", True)
-        auto_classify = st.checkbox("Auto-classify on upload", False)
-        
-        st.header("📥 Export Options")
-        auto_export = st.checkbox("Auto-export results", False)
-
-# ===== MAIN CONTENT AREA =====
-if app_mode == "🏠 Classifier":
-    st.header("📄 PDF Classifier")
-    
-    # Check if a paper from library was selected for classification
-    if hasattr(st.session_state, 'selected_paper_for_classification') and st.session_state.selected_paper_for_classification:
-        st.info(f"📚 Classifying paper from library: **{st.session_state.selected_paper_for_classification}**")
-        
-        with st.spinner("Running AI classification..."):
-            top_results = classify_with_confidence(
-                st.session_state.paper_abstract_for_classification, 
-                top_k=5,
-                improve_confidence=True
-            )
-            
-            display_classification_results(
-                top_results, 
-                st.session_state.selected_paper_for_classification, 
-                st.session_state.paper_abstract_for_classification
-            )
-        
-        # Clear the selected paper
-        st.session_state.selected_paper_for_classification = None
-        st.session_state.paper_abstract_for_classification = None
-    
-    # Handle uploaded files
-    elif uploaded_files:
-        st.success(f"📄 {len(uploaded_files)} file(s) uploaded")
-        
-        # Initialize session state for classification history
-        if 'classification_history' not in st.session_state:
-            st.session_state.classification_history = []
-        
-        # Process each uploaded file
-        for i, file in enumerate(uploaded_files):
-            # Create a card-like expander
-            with st.expander(f"📋 **{file.name}** ({file.size/1024:.1f} KB)", expanded=i==0):
-                
-                if pdf_available:
-                    # Extract text from PDF
-                    with st.spinner("Extracting text from PDF..."):
-                        try:
-                            pdf_text = pdf_processor.extract_text(file, max_pages=max_pages)
-                            abstract = pdf_processor.extract_abstract(pdf_text)
-                            word_count = pdf_processor.count_words(pdf_text)
-                            
-                            # Create two-column layout
-                            col_left, col_right = st.columns([2, 1])
-                            
-                            with col_left:
-                                st.write("**📝 Extracted Abstract:**")
-                                
-                                # Display abstract with clickable format
-                                abstract_display = f"""
-                                {abstract[:400]}...
-                                
-                                **🔗 Related Resources:**
-                                - [📖 Read full abstract](#)
-                                - [🔍 Search similar papers](https://scholar.google.com)
-                                - [📚 Find citations](#)
-                                - [🎯 Related topics](#)
-                                """
-                                st.markdown(abstract_display)
-                                
-                                # Statistics with icons
-                                st.write("**🔢 Statistics:**")
-                                stat_cols = st.columns(4)
-                                with stat_cols[0]:
-                                    st.metric("Words", word_count)
-                                with stat_cols[1]:
-                                    st.metric("Pages", max_pages)
-                                with stat_cols[2]:
-                                    st.metric("Chars", len(pdf_text))
-                                with stat_cols[3]:
-                                    st.metric("Size", f"{file.size/1024:.0f} KB")
-                                
-                                if show_raw_text and pdf_text:
-                                    with st.expander("📄 View extracted text"):
-                                        st.text(pdf_text[:2000] + "..." if len(pdf_text) > 2000 else pdf_text)
-                            
-                            with col_right:
-                                # File info card
-                                st.markdown("""
-                                <div style="background:#f8f9fa; padding:15px; border-radius:10px; border:1px solid #ddd;">
-                                    <h4 style="margin-top:0;">📄 File Information</h4>
-                                </div>
-                                """, unsafe_allow_html=True)
-                                
-                                st.metric("File Size", f"{file.size/1024:.0f} KB")
-                                st.metric("Words", word_count)
-                                st.metric("Pages", max_pages)
-                                
-                                # Quick links
-                                st.markdown("**🔗 Quick Links:**")
-                                link_col1, link_col2 = st.columns(2)
-                                with link_col1:
-                                    st.link_button("🌐 View Online", "#")
-                                with link_col2:
-                                    st.link_button("📊 Analytics", "#")
-                                
-                                # Classification section
-                                st.markdown("---")
-                                st.write("**🤖 AI Classification**")
-                                
-                                # Auto-classify if enabled
-                                classify_button = st.button(
-                                    f"🔍 Classify with AI", 
-                                    key=f"classify_{i}", 
-                                    type="primary", 
-                                    use_container_width=True
-                                )
-                                
-                                if auto_classify or classify_button:
-                                    with st.spinner("Running AI classification..."):
-                                        # Run classification with improved confidence
-                                        top_results = classify_with_confidence(
-                                            pdf_text, 
-                                            top_k=top_k,
-                                            improve_confidence=improve_model
-                                        )
-                                        
-                                        # Display results
-                                        display_classification_results(top_results, file.name, abstract)
-                                        
-                                        # Auto-export if enabled
-                                        if auto_export:
-                                            st.success("✅ Results auto-exported")
-                                            st.balloons()
-                        
-                        except Exception as e:
-                            st.error(f"❌ Error processing PDF: {str(e)}")
-                            st.info("💡 Try reducing the number of pages or check PDF format.")
-                else:
-                    # Fallback if PDF processor not available
-                    st.warning("⚠️ PDF processing not available. Please install pdfplumber:")
-                    st.code("pip install pdfplumber")
-                    
-                    col_left, col_right = st.columns([2, 1])
-                    with col_left:
-                        st.write("**📄 File Information:**")
-                        st.write(f"- Name: {file.name}")
-                        st.write(f"- Size: {file.size/1024:.1f} KB")
-                        st.write(f"- Type: PDF")
-                        st.write(f"- Status: Ready for processing")
-                    
-                    with col_right:
-                        st.metric("Status", "Ready")
-                        st.info("Install PDF processor for full functionality")
-    
-    else:
-        st.info("📤 Upload PDF files to classify or switch to Research Library to browse existing papers.")
-
-elif app_mode == "📚 Research Library":
-    display_research_library()
-
-elif app_mode == "📊 Statistics":
-    st.header("📊 Research Statistics")
-    
-    if not papers_df.empty:
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.metric("Total Papers", len(papers_df))
-        
-        with col2:
-            if 'year' in papers_df.columns:
-                recent_year = papers_df['year'].max()
-                st.metric("Latest Year", recent_year)
-        
-        with col3:
-            if 'category' in papers_df.columns:
-                unique_cats = papers_df['category'].nunique()
-                st.metric("Categories", unique_cats)
-        
-        # Category distribution
-        st.subheader("📈 Category Distribution")
         if 'category' in papers_df.columns:
             category_counts = papers_df['category'].value_counts().reset_index()
             category_counts.columns = ['Category', 'Count']
             
-            fig = px.bar(
-                category_counts.head(10),
-                x='Category',
-                y='Count',
-                color='Count',
-                title="Top 10 Research Categories",
-                labels={'Count': 'Number of Papers', 'Category': 'Category'},
-                color_continuous_scale=px.colors.sequential.Viridis
+            # Create pie chart with custom colors
+            colors = px.colors.qualitative.Plotly[:len(category_counts)]
+            
+            fig = go.Figure(data=[go.Pie(
+                labels=category_counts['Category'],
+                values=category_counts['Count'],
+                hole=.4,
+                marker_colors=colors,
+                textinfo='label+percent',
+                textposition='outside',
+                insidetextorientation='radial'
+            )])
+            
+            fig.update_layout(
+                height=400,
+                showlegend=False,
+                margin=dict(t=0, b=0, l=0, r=0),
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)'
             )
+            
             st.plotly_chart(fig, use_container_width=True)
         
-        # Yearly trend
-        st.subheader("📅 Yearly Publication Trend")
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    with chart_col2:
+        # Yearly trend - Line chart
+        st.markdown("""
+        <div class="card" style="margin-top: 24px;">
+            <h3 style="color: #1e293b; font-size: 18px; font-weight: 600; margin-bottom: 20px;">
+                📅 Publication Trend
+            </h3>
+        """, unsafe_allow_html=True)
+        
         if 'year' in papers_df.columns:
             yearly_counts = papers_df['year'].value_counts().sort_index().reset_index()
             yearly_counts.columns = ['Year', 'Count']
             
-            fig = px.line(
-                yearly_counts,
-                x='Year',
-                y='Count',
-                title="Papers Published per Year",
-                markers=True
-            )
-            st.plotly_chart(fig, use_container_width=True)
-        
-        # Word count distribution
-        st.subheader("📝 Word Count Distribution")
-        if 'word_count' in papers_df.columns:
-            fig = px.histogram(
-                papers_df,
-                x='word_count',
-                nbins=20,
-                title="Distribution of Abstract Word Counts",
-                labels={'word_count': 'Word Count', 'count': 'Number of Papers'}
-            )
-            st.plotly_chart(fig, use_container_width=True)
-        
-        # Authors per paper
-        st.subheader("👥 Authors per Paper")
-        if 'authors' in papers_df.columns:
-            authors_count = papers_df['authors'].apply(lambda x: len(x) if isinstance(x, list) else 1)
-            fig = px.histogram(
-                x=authors_count,
-                nbins=15,
-                title="Number of Authors per Paper",
-                labels={'x': 'Number of Authors', 'count': 'Number of Papers'}
-            )
-            st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.warning("No research papers loaded.")
-
-# Display classification history with clickable links
-if 'classification_history' in st.session_state and st.session_state.classification_history and app_mode == "🏠 Classifier":
-    with st.expander("📚 Classification History", expanded=False):
-        history_df = pd.DataFrame(st.session_state.classification_history)
-        
-        # Convert timestamp to readable format
-        if 'timestamp' in history_df.columns:
-            history_df['timestamp'] = pd.to_datetime(history_df['timestamp'])
-            history_df['time_display'] = history_df['timestamp'].dt.strftime('%Y-%m-%d %H:%M')
-        
-        # Create clickable category column
-        if 'wiki_link' in history_df.columns:
-            history_df['category_link'] = history_df.apply(
-                lambda row: f"[{row['predicted_category']}]({row['wiki_link']})" 
-                if pd.notna(row['wiki_link']) else row['predicted_category'],
-                axis=1
-            )
-        else:
-            history_df['category_link'] = history_df['predicted_category']
-        
-        # Display history table
-        st.dataframe(
-            history_df[['file_name', 'category_link', 'confidence', 'time_display']],
-            column_config={
-                "file_name": "File",
-                "category_link": st.column_config.TextColumn("Category", help="Click to learn more"),
-                "confidence": st.column_config.ProgressColumn(
-                    "Confidence",
-                    format="%.1f%%",
-                    min_value=0,
-                    max_value=100
+            fig = go.Figure()
+            
+            fig.add_trace(go.Scatter(
+                x=yearly_counts['Year'],
+                y=yearly_counts['Count'],
+                mode='lines+markers',
+                line=dict(color='#667eea', width=4, shape='spline'),
+                marker=dict(size=10, color='white', line=dict(width=2, color='#667eea')),
+                fill='tozeroy',
+                fillcolor='rgba(102, 126, 234, 0.1)',
+                name='Papers Published'
+            ))
+            
+            fig.update_layout(
+                height=400,
+                xaxis_title="Year",
+                yaxis_title="Number of Papers",
+                hovermode='x unified',
+                margin=dict(t=30, b=50, l=50, r=30),
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                xaxis=dict(
+                    showgrid=True,
+                    gridcolor='rgba(0,0,0,0.05)',
+                    tickmode='linear'
                 ),
-                "time_display": "Time"
-            },
-            use_container_width=True,
-            hide_index=True
+                yaxis=dict(
+                    showgrid=True,
+                    gridcolor='rgba(0,0,0,0.05)'
+                )
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Word count distribution
+    st.markdown("""
+    <div class="card" style="margin-top: 24px;">
+        <h3 style="color: #1e293b; font-size: 18px; font-weight: 600; margin-bottom: 20px;">
+            📝 Abstract Length Distribution
+        </h3>
+    """, unsafe_allow_html=True)
+    
+    if 'word_count' in papers_df.columns:
+        fig = px.histogram(
+            papers_df,
+            x='word_count',
+            nbins=20,
+            color_discrete_sequence=['#10b981'],
+            opacity=0.8
         )
         
-        # History actions
-        hist_cols = st.columns(3)
-        with hist_cols[0]:
-            if st.button("Clear History", type="secondary", use_container_width=True):
-                st.session_state.classification_history = []
-                st.rerun()
+        fig.update_layout(
+            height=300,
+            xaxis_title="Word Count",
+            yaxis_title="Number of Papers",
+            bargap=0.1,
+            margin=dict(t=30, b=50, l=50, r=30),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(
+                showgrid=True,
+                gridcolor='rgba(0,0,0,0.05)'
+            ),
+            yaxis=dict(
+                showgrid=True,
+                gridcolor='rgba(0,0,0,0.05)'
+            )
+        )
         
-        with hist_cols[1]:
-            # Export history
-            if len(history_df) > 0:
-                history_csv = history_df.to_csv(index=False)
-                st.download_button(
-                    label="📥 Export History",
-                    data=history_csv,
-                    file_name=f"classification_history_{datetime.now().strftime('%Y%m%d')}.csv",
-                    mime="text/csv",
-                    use_container_width=True
-                )
-        
-        with hist_cols[2]:
-            st.link_button("📊 View Analytics", "#")
+        st.plotly_chart(fig, use_container_width=True)
+    
+    st.markdown("</div>", unsafe_allow_html=True)
 
-# Footer với clickable links
-st.markdown("---")
-footer_cols = st.columns(5)
+# ===== MODERN SIDEBAR =====
+st.sidebar.markdown("""
+<div style="padding: 20px 0;">
+    <div style="text-align: center; margin-bottom: 32px;">
+        <div style="font-size: 32px; margin-bottom: 8px;">📈</div>
+        <div style="font-size: 18px; font-weight: 600; color: #1e293b;">Finance Research Hub</div>
+        <div style="font-size: 12px; color: #64748b; margin-top: 4px;">v2.3 • Professional Edition</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
-with footer_cols[0]:
-    st.markdown("[📖 Documentation](https://docs.streamlit.io)")
+# Navigation
+st.sidebar.header("🧭 Navigation")
+app_mode = st.sidebar.radio(
+    "",
+    ["📚 Research Library", "🤖 AI Classifier", "📊 Analytics"],
+    help="Switch between different features",
+    label_visibility="collapsed"
+)
 
-with footer_cols[1]:
-    st.markdown("[🐙 GitHub](https://github.com/YOUR_USERNAME/finance-classifier)")
+# Quick actions
+st.sidebar.markdown("---")
+st.sidebar.header("⚡ Quick Actions")
 
-with footer_cols[2]:
-    st.markdown("[💬 Community](https://discuss.streamlit.io)")
+if st.sidebar.button("🔄 Refresh Data", use_container_width=True):
+    st.cache_data.clear()
+    st.rerun()
 
-with footer_cols[3]:
-    st.markdown("[🐦 Twitter](https://twitter.com/streamlit)")
+if st.sidebar.button("📥 Export All Papers", use_container_width=True):
+    if not papers_df.empty:
+        csv = papers_df.to_csv(index=False)
+        st.sidebar.download_button(
+            label="Download CSV",
+            data=csv,
+            file_name=f"finance_papers_{datetime.now().strftime('%Y%m%d')}.csv",
+            mime="text/csv"
+        )
 
-with footer_cols[4]:
-    st.markdown(f"**Version 2.2** • {datetime.now().strftime('%Y-%m-%d')}")
+# Filter by date
+st.sidebar.markdown("---")
+st.sidebar.header("📅 Quick Filters")
 
-# Final caption với link
-st.caption(f"""
-[Finance Research Classifier](https://github.com/YOUR_USERNAME/finance-classifier) v2.2 | 
-Made with ❤️ for academic research
-""")
+if 'published_date' in papers_df.columns and not papers_df.empty:
+    min_date = papers_df['published_date'].min().date()
+    max_date = papers_df['published_date'].max().date()
+    
+    date_range = st.sidebar.date_input(
+        "Date Range",
+        value=(min_date, max_date),
+        min_value=min_date,
+        max_value=max_date
+    )
+
+# Display info
+st.sidebar.markdown("---")
+st.sidebar.header("ℹ️ Info")
+
+if not papers_df.empty:
+    latest_paper = papers_df.sort_values('published_date', ascending=False).iloc[0]
+    st.sidebar.markdown(f"""
+    <div style="background: #f8fafc; padding: 16px; border-radius: 12px; border-left: 4px solid #667eea;">
+        <div style="font-size: 13px; color: #64748b; margin-bottom: 4px;">Latest Paper</div>
+        <div style="font-size: 14px; font-weight: 500; color: #1e293b; margin-bottom: 8px;">
+            {latest_paper.get('title', 'Untitled')[:60]}...
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 12px; color: #94a3b8;">
+            <span>📅 {latest_paper.get('date_display', 'Unknown')}</span>
+            <span>{latest_paper.get('category', 'Unknown')}</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# ===== MAIN CONTENT ROUTING =====
+if app_mode == "📚 Research Library":
+    display_research_library()
+    
+elif app_mode == "🤖 AI Classifier":
+    # You can add your classifier interface here
+    st.markdown("""
+    <div class="card" style="text-align: center; padding: 48px 24px;">
+        <div style="font-size: 64px; margin-bottom: 24px;">🤖</div>
+        <h2 style="color: #1e293b; margin-bottom: 16px;">AI Classifier</h2>
+        <p style="color: #64748b; max-width: 600px; margin: 0 auto 32px auto;">
+            Upload PDFs or select papers from the library to classify them using AI
+        </p>
+        <div style="display: flex; gap: 16px; justify-content: center;">
+            <button style="
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                border: none;
+                padding: 12px 32px;
+                border-radius: 12px;
+                font-size: 14px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: all 0.3s ease;
+            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 25px rgba(102, 126, 234, 0.3)'"
+            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                📤 Upload PDF
+            </button>
+            <button style="
+                background: white;
+                color: #667eea;
+                border: 2px solid #667eea;
+                padding: 12px 32px;
+                border-radius: 12px;
+                font-size: 14px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: all 0.3s ease;
+            " onmouseover="this.style.background='#667eea'; this.style.color='white'"
+            onmouseout="this.style.background='white'; this.style.color='#667eea'">
+                📚 Browse Library
+            </button>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+elif app_mode == "📊 Analytics":
+    display_statistics()
+
+# Footer
+st.markdown("""
+<div style="margin-top: 64px; padding: 32px 0; text-align: center; color: #94a3b8; border-top: 1px solid #e2e8f0;">
+    <div style="font-size: 14px; margin-bottom: 8px;">
+        Finance Research Hub • v2.3 • Made with ❤️ for researchers
+    </div>
+    <div style="display: flex; justify-content: center; gap: 24px; margin-top: 16px;">
+        <a href="#" style="color: #64748b; text-decoration: none; font-size: 13px;">📚 Documentation</a>
+        <a href="#" style="color: #64748b; text-decoration: none; font-size: 13px;">🐙 GitHub</a>
+        <a href="#" style="color: #64748b; text-decoration: none; font-size: 13px;">📧 Contact</a>
+        <a href="#" style="color: #64748b; text-decoration: none; font-size: 13px;">🔒 Privacy</a>
+    </div>
+</div>
+""", unsafe_allow_html=True)
