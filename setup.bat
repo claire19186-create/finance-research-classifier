@@ -5,7 +5,6 @@ echo.
 REM T?o requirements.txt
 echo streamlit>=1.28.0 > requirements.txt
 echo pandas>=2.0.0 >> requirements.txt
-echo torch>=2.0.0 >> requirements.txt
 echo plotly>=5.0.0 >> requirements.txt
 echo numpy>=1.24.0 >> requirements.txt
 echo pdfplumber>=0.10.0 >> requirements.txt
