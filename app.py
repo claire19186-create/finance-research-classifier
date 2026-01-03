@@ -17,7 +17,7 @@ st.set_page_config(
 )
 
 # Title with clickable badges
-st.title("📊 Finance Research Paper Classifier")
+st.title("📊 Finance Research Paper Classifier & Library")
 st.success("✅ Finance Research Classifier - Ready")
 
 # Display versions with icons
@@ -28,6 +28,184 @@ with col2:
     st.markdown(f"**Pandas** {pd.__version__}")
 with col3:
     st.markdown(f"**Numpy** {np.__version__}")
+
+# ===== LOAD RESEARCH PAPERS FROM JSON =====
+@st.cache_data
+def load_research_papers():
+    try:
+        with open('research_papers.json', 'r', encoding='utf-8') as f:
+            papers = json.load(f)
+        
+        # Convert to DataFrame for easier manipulation
+        papers_df = pd.DataFrame(papers)
+        
+        # Convert date columns to datetime
+        if 'published' in papers_df.columns:
+            papers_df['published_date'] = pd.to_datetime(papers_df['published'])
+            papers_df['year_month'] = papers_df['published_date'].dt.strftime('%Y-%m')
+        
+        # Clean up category names
+        if 'category' in papers_df.columns:
+            papers_df['category_clean'] = papers_df['category'].str.replace('_', ' ').str.title()
+        
+        return papers_df, papers
+    except Exception as e:
+        st.error(f"Error loading research papers: {e}")
+        return pd.DataFrame(), []
+
+# Load papers
+papers_df, papers_list = load_research_papers()
+
+# ===== RESEARCH LIBRARY FUNCTIONS =====
+def display_research_library():
+    """Display the research library interface"""
+    st.header("📚 Research Library")
+    
+    # Display statistics
+    if not papers_df.empty:
+        stats_cols = st.columns(4)
+        with stats_cols[0]:
+            st.metric("Total Papers", len(papers_df))
+        with stats_cols[1]:
+            unique_categories = papers_df['category'].nunique() if 'category' in papers_df.columns else 0
+            st.metric("Categories", unique_categories)
+        with stats_cols[2]:
+            if 'year' in papers_df.columns:
+                recent_year = papers_df['year'].max()
+                st.metric("Latest Year", recent_year)
+        with stats_cols[3]:
+            if 'authors' in papers_df.columns:
+                avg_authors = papers_df['authors'].apply(lambda x: len(x) if isinstance(x, list) else 1).mean()
+                st.metric("Avg Authors", f"{avg_authors:.1f}")
+    
+    # Search and filter section
+    with st.container():
+        st.subheader("🔍 Search & Filter")
+        
+        search_cols = st.columns([3, 1, 1, 1])
+        with search_cols[0]:
+            search_query = st.text_input("Search papers (title, authors, abstract)", "")
+        
+        with search_cols[1]:
+            if 'category' in papers_df.columns:
+                categories = sorted(papers_df['category'].dropna().unique().tolist())
+                selected_category = st.selectbox("Category", ["All"] + categories)
+        
+        with search_cols[2]:
+            if 'year' in papers_df.columns:
+                years = sorted(papers_df['year'].dropna().unique().tolist(), reverse=True)
+                selected_year = st.selectbox("Year", ["All"] + [str(y) for y in years])
+        
+        with search_cols[3]:
+            sort_by = st.selectbox("Sort by", ["Newest", "Oldest", "Title A-Z", "Title Z-A"])
+    
+    # Apply filters
+    filtered_df = papers_df.copy()
+    
+    if not papers_df.empty:
+        # Apply search
+        if search_query:
+            mask = (
+                filtered_df['title'].str.contains(search_query, case=False, na=False) |
+                filtered_df['abstract'].str.contains(search_query, case=False, na=False) |
+                filtered_df['authors'].apply(lambda x: search_query.lower() in str(x).lower() if x else False)
+            )
+            filtered_df = filtered_df[mask]
+        
+        # Apply category filter
+        if 'category' in filtered_df.columns and selected_category != "All":
+            filtered_df = filtered_df[filtered_df['category'] == selected_category]
+        
+        # Apply year filter
+        if 'year' in filtered_df.columns and selected_year != "All":
+            filtered_df = filtered_df[filtered_df['year'] == int(selected_year)]
+        
+        # Apply sorting
+        if sort_by == "Newest":
+            if 'published_date' in filtered_df.columns:
+                filtered_df = filtered_df.sort_values('published_date', ascending=False)
+        elif sort_by == "Oldest":
+            if 'published_date' in filtered_df.columns:
+                filtered_df = filtered_df.sort_values('published_date', ascending=True)
+        elif sort_by == "Title A-Z":
+            filtered_df = filtered_df.sort_values('title')
+        elif sort_by == "Title Z-A":
+            filtered_df = filtered_df.sort_values('title', ascending=False)
+    
+    # Display results
+    if filtered_df.empty:
+        st.warning("No papers found matching your criteria.")
+    else:
+        st.success(f"Found {len(filtered_df)} papers")
+        
+        # Display papers in a nice format
+        for idx, paper in filtered_df.iterrows():
+            with st.expander(f"📄 **{paper.get('title', 'Untitled')}**", expanded=False):
+                col1, col2 = st.columns([3, 1])
+                
+                with col1:
+                    # Paper title and authors
+                    st.markdown(f"### {paper.get('title', 'Untitled')}")
+                    
+                    # Authors
+                    authors = paper.get('authors', [])
+                    if authors:
+                        authors_str = ", ".join(authors) if isinstance(authors, list) else str(authors)
+                        st.markdown(f"**Authors:** {authors_str}")
+                    
+                    # Year and category
+                    meta_cols = st.columns(3)
+                    with meta_cols[0]:
+                        if 'year' in paper:
+                            st.metric("Year", paper['year'])
+                    with meta_cols[1]:
+                        if 'category' in paper:
+                            st.metric("Category", paper['category'])
+                    with meta_cols[2]:
+                        if 'word_count' in paper:
+                            st.metric("Words", paper['word_count'])
+                    
+                    # Abstract
+                    st.markdown("#### Abstract")
+                    abstract = paper.get('abstract', 'No abstract available')
+                    st.write(abstract[:500] + "..." if len(abstract) > 500 else abstract)
+                    
+                    # Categories
+                    if 'categories' in paper and paper['categories']:
+                        st.markdown("#### Categories")
+                        categories = paper['categories']
+                        if isinstance(categories, list):
+                            categories_str = ", ".join(categories)
+                            st.write(categories_str)
+                
+                with col2:
+                    # Quick actions and links
+                    st.markdown("#### 🔗 Quick Links")
+                    
+                    # arXiv link
+                    if 'arxiv_url' in paper and paper['arxiv_url']:
+                        st.link_button("📄 arXiv", paper['arxiv_url'])
+                    
+                    # PDF link
+                    if 'pdf_url' in paper and paper['pdf_url']:
+                        st.link_button("📥 PDF", paper['pdf_url'])
+                    
+                    # DOI link
+                    if 'doi' in paper and paper['doi']:
+                        st.link_button("🔗 DOI", f"https://doi.org/{paper['doi']}")
+                    
+                    # Additional info
+                    st.markdown("---")
+                    if 'comment' in paper and paper['comment']:
+                        st.caption(f"**Note:** {paper['comment']}")
+                    
+                    # Classify this paper button
+                    if st.button("🤖 Classify this paper", key=f"classify_{paper.get('id', idx)}"):
+                        st.session_state.selected_paper_for_classification = paper.get('title', '')
+                        st.session_state.paper_abstract_for_classification = paper.get('abstract', '')
+                        st.rerun()
+                
+                st.markdown("---")
 
 # ===== MOCK MODEL FUNCTION (Replace with your actual model) =====
 def classify_with_confidence(text, top_k=5, improve_confidence=True):
@@ -154,7 +332,7 @@ def classify_with_confidence(text, top_k=5, improve_confidence=True):
     
     return results
 
-# Function to display classification results
+# Function to display classification results (same as before, but I'm keeping it for completeness)
 def display_classification_results(top_results, file_name="", abstract_text=""):
     """
     Display classification results with enhanced visualization and clickable links
@@ -611,211 +789,277 @@ except Exception as e:
     pdf_available = False
     st.sidebar.error(f"❌ PDF processor error: {str(e)[:50]}")
 
-# Sidebar Configuration
-with st.sidebar:
-    st.header("⚙️ Configuration")
-    
-    if pdf_available:
-        max_pages = st.slider("Pages to extract", 1, 10, 3)
-        show_raw_text = st.checkbox("Show raw text", False)
-    
-    st.header("📤 Upload Files")
-    uploaded_files = st.file_uploader(
-        "Choose PDF files",
-        type=['pdf'],
-        accept_multiple_files=True,
-        help="Upload academic papers or research reports (max 200MB per file)"
-    )
-    
-    # External links section
-    st.markdown("---")
-    st.header("🔗 Useful Links")
-    
-    link_cols = st.columns(2)
-    with link_cols[0]:
-        st.link_button("📚 Documentation", "https://docs.streamlit.io")
-        st.link_button("🐙 GitHub", "https://github.com")
-    
-    with link_cols[1]:
-        st.link_button("🎓 Tutorials", "https://streamlit.io/gallery")
-        st.link_button("💬 Community", "https://discuss.streamlit.io")
-    
-    # Quick resources
-    st.markdown("**Academic Resources:**")
-    st.markdown("- [Google Scholar](https://scholar.google.com)")
-    st.markdown("- [arXiv Finance](https://arxiv.org/list/q-fin/recent)")
-    st.markdown("- [JSTOR](https://www.jstor.org)")
-    
-    # Classification settings
-    st.header("🤖 Classification Settings")
-    top_k = st.slider("Number of top categories", 3, 10, 5)
-    improve_model = st.checkbox("Enhance confidence scores", True)
-    
-    st.header("📊 Display Options")
-    show_visualizations = st.checkbox("Show visualizations", True)
-    auto_classify = st.checkbox("Auto-classify on upload", False)
-    
-    st.header("📥 Export Options")
-    auto_export = st.checkbox("Auto-export results", False)
+# ===== MAIN APP NAVIGATION =====
+st.sidebar.header("📚 Navigation")
+app_mode = st.sidebar.radio(
+    "Choose Mode",
+    ["🏠 Classifier", "📚 Research Library", "📊 Statistics"],
+    help="Switch between classification mode and research library"
+)
 
-# Main content area
-if uploaded_files:
-    st.success(f"📄 {len(uploaded_files)} file(s) uploaded")
+# Sidebar Configuration (for classifier mode)
+if app_mode == "🏠 Classifier":
+    with st.sidebar:
+        st.header("⚙️ Configuration")
+        
+        if pdf_available:
+            max_pages = st.slider("Pages to extract", 1, 10, 3)
+            show_raw_text = st.checkbox("Show raw text", False)
+        
+        st.header("📤 Upload Files")
+        uploaded_files = st.file_uploader(
+            "Choose PDF files",
+            type=['pdf'],
+            accept_multiple_files=True,
+            help="Upload academic papers or research reports (max 200MB per file)"
+        )
+        
+        # Classification settings
+        st.header("🤖 Classification Settings")
+        top_k = st.slider("Number of top categories", 3, 10, 5)
+        improve_model = st.checkbox("Enhance confidence scores", True)
+        
+        st.header("📊 Display Options")
+        show_visualizations = st.checkbox("Show visualizations", True)
+        auto_classify = st.checkbox("Auto-classify on upload", False)
+        
+        st.header("📥 Export Options")
+        auto_export = st.checkbox("Auto-export results", False)
+
+# ===== MAIN CONTENT AREA =====
+if app_mode == "🏠 Classifier":
+    st.header("📄 PDF Classifier")
     
-    # Initialize session state for classification history
-    if 'classification_history' not in st.session_state:
-        st.session_state.classification_history = []
-    
-    # Quick action buttons at top
-    st.markdown("### ⚡ Quick Actions")
-    quick_cols = st.columns(5)
-    
-    with quick_cols[0]:
-        if st.button("📊 Classify All", use_container_width=True):
-            st.info("Classification in progress...")
-    
-    with quick_cols[1]:
-        st.link_button("📚 Help Guide", "https://docs.streamlit.io")
-    
-    with quick_cols[2]:
-        st.link_button("🐛 Report Issue", "https://github.com")
-    
-    with quick_cols[3]:
-        st.link_button("⭐ Star Project", "https://github.com")
-    
-    with quick_cols[4]:
-        st.link_button("🔄 Check Update", "https://pypi.org")
-    
-    # Process each uploaded file
-    for i, file in enumerate(uploaded_files):
-        # Create a card-like expander
-        with st.expander(f"📋 **{file.name}** ({file.size/1024:.1f} KB)", expanded=i==0):
+    # Check if a paper from library was selected for classification
+    if hasattr(st.session_state, 'selected_paper_for_classification') and st.session_state.selected_paper_for_classification:
+        st.info(f"📚 Classifying paper from library: **{st.session_state.selected_paper_for_classification}**")
+        
+        with st.spinner("Running AI classification..."):
+            top_results = classify_with_confidence(
+                st.session_state.paper_abstract_for_classification, 
+                top_k=5,
+                improve_confidence=True
+            )
             
-            # File header with quick links
-            header_cols = st.columns([3, 1])
-            with header_cols[0]:
-                st.markdown(f"**File ID:** `{hash(file.name) % 10000:04d}`")
-            with header_cols[1]:
-                st.link_button("📥 Direct Download", "#", disabled=True)
-            
-            if pdf_available:
-                # Extract text from PDF
-                with st.spinner("Extracting text from PDF..."):
-                    try:
-                        pdf_text = pdf_processor.extract_text(file, max_pages=max_pages)
-                        abstract = pdf_processor.extract_abstract(pdf_text)
-                        word_count = pdf_processor.count_words(pdf_text)
-                        
-                        # Create two-column layout
-                        col_left, col_right = st.columns([2, 1])
-                        
-                        with col_left:
-                            st.write("**📝 Extracted Abstract:**")
+            display_classification_results(
+                top_results, 
+                st.session_state.selected_paper_for_classification, 
+                st.session_state.paper_abstract_for_classification
+            )
+        
+        # Clear the selected paper
+        st.session_state.selected_paper_for_classification = None
+        st.session_state.paper_abstract_for_classification = None
+    
+    # Handle uploaded files
+    elif uploaded_files:
+        st.success(f"📄 {len(uploaded_files)} file(s) uploaded")
+        
+        # Initialize session state for classification history
+        if 'classification_history' not in st.session_state:
+            st.session_state.classification_history = []
+        
+        # Process each uploaded file
+        for i, file in enumerate(uploaded_files):
+            # Create a card-like expander
+            with st.expander(f"📋 **{file.name}** ({file.size/1024:.1f} KB)", expanded=i==0):
+                
+                if pdf_available:
+                    # Extract text from PDF
+                    with st.spinner("Extracting text from PDF..."):
+                        try:
+                            pdf_text = pdf_processor.extract_text(file, max_pages=max_pages)
+                            abstract = pdf_processor.extract_abstract(pdf_text)
+                            word_count = pdf_processor.count_words(pdf_text)
                             
-                            # Display abstract with clickable format
-                            abstract_display = f"""
-                            {abstract[:400]}...
+                            # Create two-column layout
+                            col_left, col_right = st.columns([2, 1])
                             
-                            **🔗 Related Resources:**
-                            - [📖 Read full abstract](#)
-                            - [🔍 Search similar papers](https://scholar.google.com)
-                            - [📚 Find citations](#)
-                            - [🎯 Related topics](#)
-                            """
-                            st.markdown(abstract_display)
+                            with col_left:
+                                st.write("**📝 Extracted Abstract:**")
+                                
+                                # Display abstract with clickable format
+                                abstract_display = f"""
+                                {abstract[:400]}...
+                                
+                                **🔗 Related Resources:**
+                                - [📖 Read full abstract](#)
+                                - [🔍 Search similar papers](https://scholar.google.com)
+                                - [📚 Find citations](#)
+                                - [🎯 Related topics](#)
+                                """
+                                st.markdown(abstract_display)
+                                
+                                # Statistics with icons
+                                st.write("**🔢 Statistics:**")
+                                stat_cols = st.columns(4)
+                                with stat_cols[0]:
+                                    st.metric("Words", word_count)
+                                with stat_cols[1]:
+                                    st.metric("Pages", max_pages)
+                                with stat_cols[2]:
+                                    st.metric("Chars", len(pdf_text))
+                                with stat_cols[3]:
+                                    st.metric("Size", f"{file.size/1024:.0f} KB")
+                                
+                                if show_raw_text and pdf_text:
+                                    with st.expander("📄 View extracted text"):
+                                        st.text(pdf_text[:2000] + "..." if len(pdf_text) > 2000 else pdf_text)
                             
-                            # Statistics with icons
-                            st.write("**🔢 Statistics:**")
-                            stat_cols = st.columns(4)
-                            with stat_cols[0]:
+                            with col_right:
+                                # File info card
+                                st.markdown("""
+                                <div style="background:#f8f9fa; padding:15px; border-radius:10px; border:1px solid #ddd;">
+                                    <h4 style="margin-top:0;">📄 File Information</h4>
+                                </div>
+                                """, unsafe_allow_html=True)
+                                
+                                st.metric("File Size", f"{file.size/1024:.0f} KB")
                                 st.metric("Words", word_count)
-                            with stat_cols[1]:
                                 st.metric("Pages", max_pages)
-                            with stat_cols[2]:
-                                st.metric("Chars", len(pdf_text))
-                            with stat_cols[3]:
-                                st.metric("Size", f"{file.size/1024:.0f} KB")
-                            
-                            if show_raw_text and pdf_text:
-                                with st.expander("📄 View extracted text"):
-                                    st.text(pdf_text[:2000] + "..." if len(pdf_text) > 2000 else pdf_text)
+                                
+                                # Quick links
+                                st.markdown("**🔗 Quick Links:**")
+                                link_col1, link_col2 = st.columns(2)
+                                with link_col1:
+                                    st.link_button("🌐 View Online", "#")
+                                with link_col2:
+                                    st.link_button("📊 Analytics", "#")
+                                
+                                # Classification section
+                                st.markdown("---")
+                                st.write("**🤖 AI Classification**")
+                                
+                                # Auto-classify if enabled
+                                classify_button = st.button(
+                                    f"🔍 Classify with AI", 
+                                    key=f"classify_{i}", 
+                                    type="primary", 
+                                    use_container_width=True
+                                )
+                                
+                                if auto_classify or classify_button:
+                                    with st.spinner("Running AI classification..."):
+                                        # Run classification with improved confidence
+                                        top_results = classify_with_confidence(
+                                            pdf_text, 
+                                            top_k=top_k,
+                                            improve_confidence=improve_model
+                                        )
+                                        
+                                        # Display results
+                                        display_classification_results(top_results, file.name, abstract)
+                                        
+                                        # Auto-export if enabled
+                                        if auto_export:
+                                            st.success("✅ Results auto-exported")
+                                            st.balloons()
                         
-                        with col_right:
-                            # File info card
-                            st.markdown("""
-                            <div style="background:#f8f9fa; padding:15px; border-radius:10px; border:1px solid #ddd;">
-                                <h4 style="margin-top:0;">📄 File Information</h4>
-                            </div>
-                            """, unsafe_allow_html=True)
-                            
-                            st.metric("File Size", f"{file.size/1024:.0f} KB")
-                            st.metric("Words", word_count)
-                            st.metric("Pages", max_pages)
-                            
-                            # Quick links
-                            st.markdown("**🔗 Quick Links:**")
-                            link_col1, link_col2 = st.columns(2)
-                            with link_col1:
-                                st.link_button("🌐 View Online", "#")
-                            with link_col2:
-                                st.link_button("📊 Analytics", "#")
-                            
-                            # Classification section
-                            st.markdown("---")
-                            st.write("**🤖 AI Classification**")
-                            
-                            # Auto-classify if enabled
-                            classify_button = st.button(
-                                f"🔍 Classify with AI", 
-                                key=f"classify_{i}", 
-                                type="primary", 
-                                use_container_width=True
-                            )
-                            
-                            if auto_classify or classify_button:
-                                with st.spinner("Running AI classification..."):
-                                    # Run classification with improved confidence
-                                    top_results = classify_with_confidence(
-                                        pdf_text, 
-                                        top_k=top_k,
-                                        improve_confidence=improve_model
-                                    )
-                                    
-                                    # Display results
-                                    display_classification_results(top_results, file.name, abstract)
-                                    
-                                    # Auto-export if enabled
-                                    if auto_export:
-                                        st.success("✅ Results auto-exported")
-                                        st.balloons()
+                        except Exception as e:
+                            st.error(f"❌ Error processing PDF: {str(e)}")
+                            st.info("💡 Try reducing the number of pages or check PDF format.")
+                else:
+                    # Fallback if PDF processor not available
+                    st.warning("⚠️ PDF processing not available. Please install pdfplumber:")
+                    st.code("pip install pdfplumber")
                     
-                    except Exception as e:
-                        st.error(f"❌ Error processing PDF: {str(e)}")
-                        st.info("💡 Try reducing the number of pages or check PDF format.")
-            else:
-                # Fallback if PDF processor not available
-                st.warning("⚠️ PDF processing not available. Please install pdfplumber:")
-                st.code("pip install pdfplumber")
-                
-                col_left, col_right = st.columns([2, 1])
-                with col_left:
-                    st.write("**📄 File Information:**")
-                    st.write(f"- Name: {file.name}")
-                    st.write(f"- Size: {file.size/1024:.1f} KB")
-                    st.write(f"- Type: PDF")
-                    st.write(f"- Status: Ready for processing")
-                
-                with col_right:
-                    st.metric("Status", "Ready")
-                    st.info("Install PDF processor for full functionality")
+                    col_left, col_right = st.columns([2, 1])
+                    with col_left:
+                        st.write("**📄 File Information:**")
+                        st.write(f"- Name: {file.name}")
+                        st.write(f"- Size: {file.size/1024:.1f} KB")
+                        st.write(f"- Type: PDF")
+                        st.write(f"- Status: Ready for processing")
                     
-                    # Installation links
-                    st.markdown("**Installation Links:**")
-                    st.markdown("- [PyPI](https://pypi.org/project/pdfplumber/)")
-                    st.markdown("- [Documentation](https://github.com/jsvine/pdfplumber)")
+                    with col_right:
+                        st.metric("Status", "Ready")
+                        st.info("Install PDF processor for full functionality")
+    
+    else:
+        st.info("📤 Upload PDF files to classify or switch to Research Library to browse existing papers.")
+
+elif app_mode == "📚 Research Library":
+    display_research_library()
+
+elif app_mode == "📊 Statistics":
+    st.header("📊 Research Statistics")
+    
+    if not papers_df.empty:
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric("Total Papers", len(papers_df))
+        
+        with col2:
+            if 'year' in papers_df.columns:
+                recent_year = papers_df['year'].max()
+                st.metric("Latest Year", recent_year)
+        
+        with col3:
+            if 'category' in papers_df.columns:
+                unique_cats = papers_df['category'].nunique()
+                st.metric("Categories", unique_cats)
+        
+        # Category distribution
+        st.subheader("📈 Category Distribution")
+        if 'category' in papers_df.columns:
+            category_counts = papers_df['category'].value_counts().reset_index()
+            category_counts.columns = ['Category', 'Count']
+            
+            fig = px.bar(
+                category_counts.head(10),
+                x='Category',
+                y='Count',
+                color='Count',
+                title="Top 10 Research Categories",
+                labels={'Count': 'Number of Papers', 'Category': 'Category'},
+                color_continuous_scale=px.colors.sequential.Viridis
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # Yearly trend
+        st.subheader("📅 Yearly Publication Trend")
+        if 'year' in papers_df.columns:
+            yearly_counts = papers_df['year'].value_counts().sort_index().reset_index()
+            yearly_counts.columns = ['Year', 'Count']
+            
+            fig = px.line(
+                yearly_counts,
+                x='Year',
+                y='Count',
+                title="Papers Published per Year",
+                markers=True
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # Word count distribution
+        st.subheader("📝 Word Count Distribution")
+        if 'word_count' in papers_df.columns:
+            fig = px.histogram(
+                papers_df,
+                x='word_count',
+                nbins=20,
+                title="Distribution of Abstract Word Counts",
+                labels={'word_count': 'Word Count', 'count': 'Number of Papers'}
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # Authors per paper
+        st.subheader("👥 Authors per Paper")
+        if 'authors' in papers_df.columns:
+            authors_count = papers_df['authors'].apply(lambda x: len(x) if isinstance(x, list) else 1)
+            fig = px.histogram(
+                x=authors_count,
+                nbins=15,
+                title="Number of Authors per Paper",
+                labels={'x': 'Number of Authors', 'count': 'Number of Papers'}
+            )
+            st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.warning("No research papers loaded.")
 
 # Display classification history with clickable links
-if 'classification_history' in st.session_state and st.session_state.classification_history:
+if 'classification_history' in st.session_state and st.session_state.classification_history and app_mode == "🏠 Classifier":
     with st.expander("📚 Classification History", expanded=False):
         history_df = pd.DataFrame(st.session_state.classification_history)
         
@@ -891,10 +1135,10 @@ with footer_cols[3]:
     st.markdown("[🐦 Twitter](https://twitter.com/streamlit)")
 
 with footer_cols[4]:
-    st.markdown(f"**Version 2.1** • {datetime.now().strftime('%Y-%m-%d')}")
+    st.markdown(f"**Version 2.2** • {datetime.now().strftime('%Y-%m-%d')}")
 
 # Final caption với link
 st.caption(f"""
-[Finance Research Classifier](https://github.com/YOUR_USERNAME/finance-classifier) v2.1 | 
+[Finance Research Classifier](https://github.com/YOUR_USERNAME/finance-classifier) v2.2 | 
 Made with ❤️ for academic research
 """)
