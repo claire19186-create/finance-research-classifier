@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import torch
+# import torch  # Commented out - not needed for mock model
 import sys
 import plotly.express as px
 import numpy as np
@@ -19,18 +19,16 @@ st.set_page_config(
 
 # Title with clickable badges
 st.title("📊 Finance Research Paper Classifier")
-st.success(f"✅ PyTorch {torch.__version__} - Running on CPU")
+st.success("✅ Finance Research Classifier - Ready")
 
 # Display versions with icons
-col1, col2, col3, col4 = st.columns(4)
+col1, col2, col3 = st.columns(3)
 with col1:
-    st.metric("PyTorch", torch.__version__)
-with col2:
-    st.metric("Device", "CPU")
-with col3:
     st.markdown(f"**Streamlit** {st.__version__}")
-with col4:
+with col2:
     st.markdown(f"**Pandas** {pd.__version__}")
+with col3:
+    st.markdown(f"**Numpy** {np.__version__}")
 
 # ===== MOCK MODEL FUNCTION (Replace with your actual model) =====
 def classify_with_confidence(text, top_k=5, improve_confidence=True):
@@ -899,6 +897,5 @@ with footer_cols[4]:
 # Final caption với link
 st.caption(f"""
 [Finance Research Classifier](https://github.com/YOUR_USERNAME/finance-classifier) v2.1 | 
-[PyTorch](https://pytorch.org) {torch.__version__} | 
 Made with ❤️ for academic research
 """)
