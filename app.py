@@ -94,227 +94,90 @@ def load_research_papers():
 papers_df, papers_list = load_research_papers()
 
 # ===== RESEARCH LIBRARY FUNCTIONS =====
-def display_research_library():
-    """Display the research library interface"""
-    st.header("📚 Research Library")
+# ===== LOAD RESEARCH PAPERS =====
+@st.cache_data
+def load_research_papers():
+    """Load research papers from embedded data"""
+    # Create English papers
+    english_papers = create_english_papers()
     
-    # Display statistics
-    if not papers_df.empty:
-        stats_cols = st.columns(5)
-        with stats_cols[0]:
-            st.metric("Total Papers", len(papers_df))
-        with stats_cols[1]:
-            # Kiểm tra cột category tồn tại
-            if 'category' in papers_df.columns:
-                unique_categories = papers_df['category'].nunique()
-            else:
-                unique_categories = 0
-            st.metric("Categories", unique_categories)
-        with stats_cols[2]:
-            if 'year' in papers_df.columns:
-                recent_year = int(papers_df['year'].max())
-            else:
-                recent_year = 2025
-            st.metric("Latest Year", recent_year)
-        with stats_cols[3]:
-            if 'language' in papers_df.columns:
-                english_count = len(papers_df[papers_df['language'] == 'English'])
-                chinese_count = len(papers_df[papers_df['language'] == 'Chinese'])
-                st.metric("Languages", f"EN:{english_count}/CN:{chinese_count}")
-            else:
-                st.metric("Languages", "Unknown")
-        with stats_cols[4]:
-            if 'word_count' in papers_df.columns:
-                total_words = papers_df['word_count'].sum()
-                st.metric("Total Words", f"{total_words:,}")
-            else:
-                st.metric("Total Words", "N/A")
+    # Create Chinese papers  
+    chinese_papers = create_chinese_papers()
     
-    # Search and filter section
-    with st.container():
-        st.subheader("🔍 Search & Filter")
-        
-        search_cols = st.columns([2, 1, 1, 1, 1])
-        with search_cols[0]:
-            search_query = st.text_input("Search papers (title, authors, abstract)", "")
-        
-        with search_cols[1]:
-            # Kiểm tra cột category tồn tại
-            if 'category' in papers_df.columns and not papers_df.empty:
-                categories = sorted(papers_df['category'].dropna().unique().tolist())
-            else:
-                categories = []
-            selected_category = st.selectbox("Category", ["All"] + categories)
-        
-        with search_cols[2]:
-            # Kiểm tra cột year tồn tại
-            if 'year' in papers_df.columns and not papers_df.empty:
-                years = sorted(papers_df['year'].dropna().unique().tolist(), reverse=True)
-            else:
-                years = []
-            selected_year = st.selectbox("Year", ["All"] + [str(int(y)) for y in years])
-        
-        with search_cols[3]:
-            # Kiểm tra cột language tồn tại
-            if 'language' in papers_df.columns and not papers_df.empty:
-                languages = sorted(papers_df['language'].dropna().unique().tolist())
-            else:
-                languages = []
-            selected_language = st.selectbox("Language", ["All"] + languages)
-        
-        with search_cols[4]:
-            sort_by = st.selectbox("Sort by", ["Newest", "Oldest", "Title A-Z", "Title Z-A"])
+    # Combine all papers
+    all_papers = english_papers + chinese_papers
     
-    # Apply filters
-    filtered_df = papers_df.copy()
+    # Create DataFrame
+    papers_df = pd.DataFrame(all_papers)
     
-    if not papers_df.empty:
-        # Apply search
-        if search_query:
-            mask = (
-                filtered_df['title'].astype(str).str.contains(search_query, case=False, na=False) |
-                filtered_df['abstract'].astype(str).str.contains(search_query, case=False, na=False) |
-                filtered_df['authors'].apply(lambda x: search_query.lower() in str(x).lower() if isinstance(x, list) else False)
-            )
-            filtered_df = filtered_df[mask]
-        
-        # Apply category filter (chỉ nếu cột tồn tại)
-        if selected_category != "All" and 'category' in filtered_df.columns:
-            filtered_df = filtered_df[filtered_df['category'] == selected_category]
-        
-        # Apply year filter (chỉ nếu cột tồn tại)
-        if selected_year != "All" and 'year' in filtered_df.columns:
-            filtered_df = filtered_df[filtered_df['year'] == int(selected_year)]
-        
-        # Apply language filter (chỉ nếu cột tồn tại)
-        if selected_language != "All" and 'language' in filtered_df.columns:
-            filtered_df = filtered_df[filtered_df['language'] == selected_language]
-        
-        # Apply sorting
-        if sort_by == "Newest" and 'year' in filtered_df.columns:
-            filtered_df = filtered_df.sort_values('year', ascending=False)
-        elif sort_by == "Oldest" and 'year' in filtered_df.columns:
-            filtered_df = filtered_df.sort_values('year', ascending=True)
-        elif sort_by == "Title A-Z" and 'title' in filtered_df.columns:
-            filtered_df = filtered_df.sort_values('title')
-        elif sort_by == "Title Z-A" and 'title' in filtered_df.columns:
-            filtered_df = filtered_df.sort_values('title', ascending=False)
+    # Debug: Kiểm tra các cột có tồn tại không
+    st.sidebar.write(f"📊 Loaded {len(papers_df)} papers")
+    st.sidebar.write(f"Columns: {papers_df.columns.tolist()}")
     
-    # Display results
-    if filtered_df.empty:
-        st.warning("No papers found matching your criteria.")
-    else:
-        st.success(f"Found {len(filtered_df)} papers")
-        
-        # Display papers in a nice format
-        for idx, paper in filtered_df.iterrows():
-            paper_id = paper.get('id', idx)
-            paper_title = paper.get('title', 'Untitled')
-            paper_language = paper.get('language', 'Unknown')
-            
-            with st.expander(f"📄 **{paper_title}** ({paper_language})", expanded=False):
-                col1, col2 = st.columns([3, 1])
-                
-                with col1:
-                    # Paper title and authors
-                    st.markdown(f"### {paper_title}")
-                    
-                    # Authors
-                    authors = paper.get('authors', [])
-                    if authors and isinstance(authors, list):
-                        authors_str = ", ".join(authors)
-                        st.markdown(f"**Authors:** {authors_str}")
-                    elif authors:
-                        st.markdown(f"**Authors:** {authors}")
-                    
-                    # Year and category
-                    meta_cols = st.columns(4)
-                    with meta_cols[0]:
-                        if 'year' in paper:
-                            st.metric("Year", int(paper['year']))
-                    with meta_cols[1]:
-                        if 'category' in paper:
-                            st.metric("Category", paper['category'])
-                    with meta_cols[2]:
-                        if 'language' in paper:
-                            st.metric("Language", paper['language'])
-                    with meta_cols[3]:
-                        if 'word_count' in paper:
-                            st.metric("Words", paper['word_count'])
-                    
-                    # Abstract
-                    st.markdown("#### Abstract")
-                    abstract = paper.get('abstract', 'No abstract available')
-                    if isinstance(abstract, str):
-                        if len(abstract) > 500:
-                            st.write(abstract[:500] + "...")
-                        else:
-                            st.write(abstract)
-                    else:
-                        st.write(str(abstract))
-                    
-                    # Source and keywords
-                    source = paper.get('source', '')
-                    if source:
-                        st.markdown(f"**Source:** {source}")
-                    
-                    keywords = paper.get('keywords', '')
-                    if keywords:
-                        st.markdown(f"**Keywords:** {keywords}")
-                
-                with col2:
-                    # Quick actions and links
-                    st.markdown("#### 🔗 Quick Links")
-                    
-                    # Use safe_link_button for all links
-                    arxiv_url = paper.get('arxiv_url', '')
-                    pdf_url = paper.get('pdf_url', '')
-                    doi_value = paper.get('doi', '')
-                    
-                    # arXiv button
-                    safe_link_button(
-                        "📄 arXiv", 
-                        arxiv_url,
-                        key=f"arxiv_{paper_id}"
-                    )
-                    
-                    # PDF button
-                    safe_link_button(
-                        "📥 PDF", 
-                        pdf_url,
-                        key=f"pdf_{paper_id}"
-                    )
-                    
-                    # DOI button
-                    if doi_value and isinstance(doi_value, str) and doi_value.strip():
-                        doi_url = f"https://doi.org/{doi_value}"
-                        safe_link_button(
-                            "🔗 DOI", 
-                            doi_url,
-                            key=f"doi_{paper_id}"
-                        )
-                    
-                    # Search link
-                    if 'title' in paper:
-                        search_url = f"https://scholar.google.com/scholar?q={paper['title'].replace(' ', '+')}"
-                        st.link_button("🔍 Search", search_url)
-                    
-                    # Additional info
-                    st.markdown("---")
-                    keywords = paper.get('keywords', '')
-                    if keywords and isinstance(keywords, str) and keywords.strip():
-                        if len(keywords) > 50:
-                            st.caption(f"**Keywords:** {keywords[:50]}...")
-                        else:
-                            st.caption(f"**Keywords:** {keywords}")
-                    
-                    # Classify this paper button
-                    if st.button("🤖 Classify this paper", key=f"classify_{paper_id}"):
-                        st.session_state.selected_paper_for_classification = paper.get('title', '')
-                        st.session_state.paper_abstract_for_classification = paper.get('abstract', '')
-                        st.rerun()
-                
-                st.markdown("---")
+    # Đảm bảo các cột cần thiết tồn tại
+    required_columns = ['title', 'authors', 'abstract', 'year', 'category', 'language']
+    
+    for col in required_columns:
+        if col not in papers_df.columns:
+            st.sidebar.warning(f"⚠️ Column '{col}' not found, creating default values")
+            if col == 'title':
+                papers_df[col] = [f"Paper {i+1}" for i in range(len(papers_df))]
+            elif col == 'authors':
+                papers_df[col] = [["Unknown Author"] for _ in range(len(papers_df))]
+            elif col == 'abstract':
+                papers_df[col] = ["No abstract available" for _ in range(len(papers_df))]
+            elif col == 'year':
+                papers_df[col] = 2025
+            elif col == 'category':
+                papers_df[col] = 'Uncategorized'
+            elif col == 'language':
+                # Xác định ngôn ngữ dựa trên title
+                def detect_language(title):
+                    if isinstance(title, str):
+                        # Kiểm tra xem có ký tự tiếng Trung không
+                        import re
+                        chinese_chars = re.findall(r'[\u4e00-\u9fff]+', title)
+                        if chinese_chars:
+                            return 'Chinese'
+                    return 'English'
+                papers_df[col] = papers_df['title'].apply(detect_language)
+    
+    # Convert date columns
+    if 'published' in papers_df.columns:
+        papers_df['published_date'] = pd.to_datetime(papers_df['published'], errors='coerce')
+        papers_df['year_month'] = papers_df['published_date'].dt.strftime('%Y-%m')
+    
+    # Ensure year is integer
+    if 'year' in papers_df.columns:
+        papers_df['year'] = pd.to_numeric(papers_df['year'], errors='coerce').fillna(2025).astype(int)
+    
+    # Ensure all required fields exist
+    papers_df['arxiv_url'] = papers_df.get('arxiv_url', '')
+    papers_df['pdf_url'] = papers_df.get('pdf_url', '')
+    papers_df['doi'] = papers_df.get('doi', '')
+    papers_df['keywords'] = papers_df.get('keywords', '')
+    
+    # Clean up authors column
+    def clean_authors(authors):
+        if isinstance(authors, list):
+            return authors
+        elif isinstance(authors, str):
+            # Try to parse string representation of list
+            try:
+                import ast
+                return ast.literal_eval(authors)
+            except:
+                return [authors]
+        else:
+            return ["Unknown Author"]
+    
+    papers_df['authors'] = papers_df['authors'].apply(clean_authors)
+    
+    # Show loading success
+    st.sidebar.success(f"✅ Loaded {len(english_papers)} English papers")
+    st.sidebar.success(f"✅ Loaded {len(chinese_papers)} Chinese papers")
+    
+    return papers_df, all_papers
 
 # ===== MOCK MODEL FUNCTION =====
 def classify_with_confidence(text, top_k=5, improve_confidence=True):
