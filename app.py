@@ -1,4 +1,4 @@
-# COMPLETE BILINGUAL FINANCE RESEARCH HUB - DEPLOY FIXED VERSION
+# COMPLETE BILINGUAL FINANCE RESEARCH HUB - FINAL DEPLOY VERSION
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -576,6 +576,10 @@ def process_pdf_classification(pdf_file):
         
         return potential_title, abstract
 
+# ==================== INITIALIZE SESSION STATE ====================
+if 'uploaded_papers' not in st.session_state:
+    st.session_state.uploaded_papers = []
+
 # ==================== LOAD RESEARCH PAPERS ====================
 @st.cache_data
 def load_research_papers():
@@ -589,7 +593,6 @@ def load_research_papers():
             with open(json_path, 'r', encoding='utf-8') as f:
                 json_papers = json.load(f)
                 all_papers.extend(json_papers)
-                st.sidebar.success(f"✅ Loaded {len(json_papers)} papers from JSON")
         except Exception as e:
             st.sidebar.warning(f"⚠️ Could not load JSON: {e}")
     
@@ -600,7 +603,6 @@ def load_research_papers():
         
         if excel_files:
             excel_path = excel_files[0]
-            st.sidebar.info(f"📊 Found CNKI Excel: {excel_path}")
             
             # Simple Excel loader for CNKI
             try:
@@ -625,16 +627,13 @@ def load_research_papers():
                             'published': f"{int(row.get('Year-年', 2024))}-01-01"
                         }
                         all_papers.append(paper)
-                
-                st.sidebar.success(f"✅ Loaded {len([p for p in all_papers if p.get('type') == 'cnki_journal'])} CNKI papers")
             except Exception as e:
                 st.sidebar.error(f"❌ Error loading CNKI Excel: {e}")
-    except Exception as e:
-        st.sidebar.warning(f"⚠️ Could not search for Excel files: {e}")
+    except Exception:
+        pass
     
     # If no papers loaded, use sample data
     if not all_papers:
-        st.sidebar.info("ℹ️ Using sample papers")
         all_papers = [
             {
                 'title': 'Sample: Green Finance Development in China',
@@ -730,7 +729,7 @@ st.sidebar.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Navigation
+# Navigation - FIXED: Có đủ 4 tabs
 st.sidebar.header("🧭 Navigation")
 app_mode = st.sidebar.radio(
     "",
@@ -751,14 +750,20 @@ if st.sidebar.button("🔄 Refresh Data", use_container_width=True):
 st.sidebar.markdown("---")
 st.sidebar.header("📤 Upload Files")
 
-uploaded_file = st.sidebar.file_uploader("Upload PDF or Excel", type=['pdf', 'xlsx', 'xls'])
+uploaded_file = st.sidebar.file_uploader("Upload PDF or Excel", type=['pdf', 'xlsx', 'xls'], key="sidebar_uploader")
 
 # Info section
 st.sidebar.markdown("---")
 st.sidebar.header("ℹ️ System Info")
 
-if not papers_df.empty:
-    latest_paper = papers_df.sort_values('published_date', ascending=False).iloc[0]
+# Combine loaded papers with uploaded papers for stats
+all_papers_combined = papers_df.copy()
+if st.session_state.uploaded_papers:
+    uploaded_df = pd.DataFrame(st.session_state.uploaded_papers)
+    all_papers_combined = pd.concat([all_papers_combined, uploaded_df], ignore_index=True)
+
+if not all_papers_combined.empty:
+    latest_paper = all_papers_combined.sort_values('published_date', ascending=False).iloc[0]
     paper_language = "🇨🇳 Chinese" if str(latest_paper.get('arxiv_id', '')).startswith('CNKI') else "🇺🇸 English"
     
     st.sidebar.markdown(f"""
@@ -829,29 +834,58 @@ def display_pdf_processor():
             key="pdf_uploader_main"
         )
         
-        if uploaded_pdf:
+        if uploaded_pdf is not None:
             st.success(f"✅ File uploaded: {uploaded_pdf.name}")
             
             # Extract text from PDF
-            with st.spinner("Processing PDF..."):
-                title, abstract = process_pdf_classification(uploaded_pdf)
+            title, abstract = process_pdf_classification(uploaded_pdf)
+            
+            if title and abstract:
+                st.markdown("#### 📝 Extracted Content")
                 
-                if title and abstract:
-                    st.markdown("#### 📝 Extracted Content")
+                with st.expander("View Extracted Text"):
+                    st.text_area("Title/First Line", title, height=80, key="extracted_title")
+                    st.text_area("Abstract/First 500 chars", abstract, height=200, key="extracted_abstract")
+                
+                # Classify the extracted text
+                classification_results = enhanced_classify_with_confidence(f"{title} {abstract}")
+                
+                if classification_results:
+                    st.markdown("#### 🤖 Classification Results")
                     
-                    with st.expander("View Extracted Text"):
-                        st.text_area("Title/First Line", title, height=80)
-                        st.text_area("Abstract/First 500 chars", abstract, height=200)
+                    # Display classification results
+                    top_category = classification_results[0]
                     
-                    # Classify the extracted text
-                    classification_results = enhanced_classify_with_confidence(f"{title} {abstract}")
-                    
-                    if classification_results:
-                        st.markdown("#### 🤖 Classification Results")
-                        display_classification_results_simple(classification_results)
+                    st.markdown(f"""
+                    <div style="background: {top_category['color']}10; padding: 20px; border-radius: 12px; border-left: 4px solid {top_category['color']}; margin: 16px 0;">
+                        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px;">
+                            <div style="font-size: 32px; color: {top_category['color']};">{top_category['icon']}</div>
+                            <div style="flex: 1;">
+                                <div style="font-size: 20px; font-weight: 700; color: {top_category['color']};">
+                                    {top_category['category']}
+                                </div>
+                                <div style="font-size: 16px; color: #64748b;">
+                                    Confidence: {top_category['confidence']:.1f}%
+                                </div>
+                            </div>
+                            <div style="font-size: 32px; font-weight: 700; color: {top_category['color']};">
+                                {top_category['confidence']:.1f}%
+                            </div>
+                        </div>
                         
-                        # Add to papers list button
-                        if st.button("📥 Add to Research Library", type="primary"):
+                        <div style="font-size: 14px; color: #64748b; margin-top: 16px;">
+                            Matched Keywords ({top_category['total_matches']} found):
+                            <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;">
+                                {''.join([f'<span style="background: {top_category["color"]}30; color: {top_category["color"]}; padding: 4px 10px; border-radius: 16px; font-size: 12px; font-weight: 500;">{kw}</span>' for kw in top_category["matched_keywords"][:8]])}
+                            </div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Add to papers list button
+                    col_btn1, col_btn2 = st.columns(2)
+                    with col_btn1:
+                        if st.button("📥 Add to Research Library", type="primary", use_container_width=True):
                             new_paper = {
                                 'title': title[:200],
                                 'authors': ['Uploaded PDF'],
@@ -865,15 +899,33 @@ def display_pdf_processor():
                                 'arxiv_url': '',
                                 'pdf_url': '',
                                 'word_count': len(abstract.split()),
-                                'published': datetime.now().strftime('%Y-%m-%d')
+                                'published': datetime.now().strftime('%Y-%m-%d'),
+                                'published_date': datetime.now(),
+                                'date_display': datetime.now().strftime('%b %d, %Y'),
+                                'category_color': FINANCE_KEYWORD_DATABASE.get(classification_results[0]['category'], {}).get('color', '#94a3b8')
                             }
-                            
-                            # Add to session state
-                            if 'uploaded_papers' not in st.session_state:
-                                st.session_state.uploaded_papers = []
                             
                             st.session_state.uploaded_papers.append(new_paper)
                             st.success(f"✅ Paper added to library! Category: {classification_results[0]['category']}")
+                            st.rerun()
+                    
+                    with col_btn2:
+                        # Export classification results
+                        export_data = {
+                            "filename": uploaded_pdf.name,
+                            "title": title[:200],
+                            "abstract": abstract[:500],
+                            "timestamp": datetime.now().isoformat(),
+                            "classification": classification_results[0]
+                        }
+                        
+                        st.download_button(
+                            label="📁 Export Results",
+                            data=json.dumps(export_data, indent=2, ensure_ascii=False),
+                            file_name=f"pdf_classification_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                            mime="application/json",
+                            use_container_width=True
+                        )
         
         st.markdown("</div>", unsafe_allow_html=True)
     
@@ -895,6 +947,18 @@ def display_pdf_processor():
                 </ul>
             </div>
             
+            <div style="margin-bottom: 24px;">
+                <div style="font-size: 14px; color: #64748b; margin-bottom: 12px;">Uploaded Papers:</div>
+                <div style="background: #f8fafc; padding: 16px; border-radius: 12px;">
+                    <div style="text-align: center; font-size: 24px; font-weight: 700; color: #667eea; margin-bottom: 8px;">
+                        {len(st.session_state.uploaded_papers)}
+                    </div>
+                    <div style="text-align: center; font-size: 12px; color: #64748b;">
+                        PDF papers in library
+                    </div>
+                </div>
+            </div>
+            
             <div style="margin-top: 24px; padding: 16px; background: #f0f9ff; border-radius: 12px;">
                 <div style="font-size: 12px; color: #0369a1; margin-bottom: 8px;">💡 Tip</div>
                 <div style="font-size: 13px; color: #475569;">
@@ -903,36 +967,6 @@ def display_pdf_processor():
             </div>
         </div>
         """, unsafe_allow_html=True)
-
-def display_classification_results_simple(results):
-    """Display simple classification results for PDF processor"""
-    if not results:
-        return
-    
-    top_category = results[0]
-    
-    st.markdown(f"""
-    <div style="background: {top_category['color']}10; padding: 16px; border-radius: 12px; border-left: 4px solid {top_category['color']}; margin: 16px 0;">
-        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-            <div style="font-size: 24px; color: {top_category['color']};">{top_category['icon']}</div>
-            <div style="flex: 1;">
-                <div style="font-size: 18px; font-weight: 600; color: {top_category['color']};">
-                    {top_category['category']}
-                </div>
-                <div style="font-size: 14px; color: #64748b;">
-                    Confidence: {top_category['confidence']:.1f}%
-                </div>
-            </div>
-        </div>
-        
-        <div style="font-size: 13px; color: #64748b; margin-top: 12px;">
-            Matched Keywords ({top_category['total_matches']}):
-            <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px;">
-                {''.join([f'<span style="background: {top_category["color"]}20; color: {top_category["color"]}; padding: 2px 8px; border-radius: 12px; font-size: 11px;">{kw}</span>' for kw in top_category["matched_keywords"][:6]])}
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
 
 # ==================== RESEARCH LIBRARY ====================
 def display_research_library():
@@ -951,7 +985,7 @@ def display_research_library():
     
     # Combine loaded papers with uploaded papers
     all_papers_df = papers_df.copy()
-    if 'uploaded_papers' in st.session_state and st.session_state.uploaded_papers:
+    if st.session_state.uploaded_papers:
         uploaded_df = pd.DataFrame(st.session_state.uploaded_papers)
         all_papers_df = pd.concat([all_papers_df, uploaded_df], ignore_index=True)
     
@@ -1082,6 +1116,22 @@ def display_research_library():
                     📄 Found {len(filtered_df)} papers
                 </h3>
             </div>
+            <div>
+                <button onclick="exportPapers()" style="
+                    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                    color: white;
+                    border: none;
+                    padding: 8px 20px;
+                    border-radius: 12px;
+                    font-size: 14px;
+                    font-weight: 500;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(16, 185, 129, 0.3)'"
+                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                    📊 Export Results
+                </button>
+            </div>
         </div>
         """, unsafe_allow_html=True)
         
@@ -1196,23 +1246,6 @@ def display_research_library():
                 
                 <div style="display: flex; gap: 8px; margin-top: 16px;">
                     {links_html}
-                    <button onclick="classifyPaper('{paper.get('title', '').replace("'", "\\'")}', '{paper.get('abstract', '').replace("'", "\\'")}')" style="
-                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                        color: white;
-                        border: none;
-                        padding: 6px 16px;
-                        border-radius: 8px;
-                        font-size: 13px;
-                        font-weight: 500;
-                        cursor: pointer;
-                        display: inline-flex;
-                        align-items: center;
-                        gap: 6px;
-                        transition: all 0.2s ease;
-                    " onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.3)'"
-                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
-                        🤖 Re-classify
-                    </button>
                 </div>
             </div>
             """
@@ -1492,7 +1525,7 @@ def display_statistics():
     
     # Combine loaded papers with uploaded papers
     all_papers_df = papers_df.copy()
-    if 'uploaded_papers' in st.session_state and st.session_state.uploaded_papers:
+    if st.session_state.uploaded_papers:
         uploaded_df = pd.DataFrame(st.session_state.uploaded_papers)
         all_papers_df = pd.concat([all_papers_df, uploaded_df], ignore_index=True)
     
@@ -1663,7 +1696,10 @@ st.markdown("""
 <script>
 function classifyPaper(title, abstract) {
     alert('Switching to classifier with paper: ' + title.substring(0, 50) + '...');
-    // In a real implementation, this would switch tabs
+}
+
+function exportPapers() {
+    alert('Export functionality would be implemented here.');
 }
 </script>
 """, unsafe_allow_html=True)
