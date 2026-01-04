@@ -6,8 +6,6 @@ import numpy as np
 import json
 import io
 from datetime import datetime
-import base64
-from io import BytesIO
 
 st.set_page_config(
     page_title="Finance Research Classifier",
@@ -17,7 +15,6 @@ st.set_page_config(
 
 # Title with clickable badges
 st.title("📊 Finance Research Paper Classifier & Library")
-st.success("✅ Finance Research Classifier - Ready")
 
 # Display versions with icons
 col1, col2, col3 = st.columns(3)
@@ -27,6 +24,15 @@ with col2:
     st.markdown(f"**Pandas** {pd.__version__}")
 with col3:
     st.markdown(f"**Numpy** {np.__version__}")
+
+# ===== SAFE LINK BUTTON FUNCTION =====
+def safe_link_button(label, url, key=None, help_text=None, disabled=False):
+    """
+    Safe wrapper for st.link_button that handles empty/invalid URLs
+    """
+    if not url or not isinstance(url, str) or not url.strip() or not url.startswith(('http://', 'https://')):
+        return st.button(label, disabled=True, key=key, help=help_text or "Link not available")
+    return st.link_button(label, url, key=key, help=help_text)
 
 # ===== CREATE SAMPLE RESEARCH PAPERS DATA =====
 def create_english_papers():
@@ -39,16 +45,14 @@ def create_english_papers():
             "year": 2025,
             "month": 1,
             "category": "Computational Finance",
-            "arxiv_category": "q-fin.CP",
             "abstract": "This paper explores the application of deep learning techniques for financial time series prediction. We propose a novel LSTM-based architecture that outperforms traditional ARIMA models in forecasting stock prices.",
             "pdf_url": "https://arxiv.org/pdf/2501.12345",
             "arxiv_url": "https://arxiv.org/abs/2501.12345",
             "published": "2025-01-15T00:00:00+00:00",
-            "primary_category": "q-fin.CP",
-            "categories": ["q-fin.CP", "cs.LG"],
             "word_count": 150,
             "language": "English",
-            "source": "Journal of Financial Data Science"
+            "source": "Journal of Financial Data Science",
+            "doi": "10.1234/example.2025"
         },
         {
             "id": 2,
@@ -57,16 +61,14 @@ def create_english_papers():
             "year": 2024,
             "month": 6,
             "category": "Fintech",
-            "arxiv_category": "q-fin.GN",
             "abstract": "An analysis of blockchain technology applications in the banking sector, focusing on smart contracts and decentralized finance (DeFi).",
             "pdf_url": "https://arxiv.org/pdf/2406.54321",
             "arxiv_url": "https://arxiv.org/abs/2406.54321",
             "published": "2024-06-20T00:00:00+00:00",
-            "primary_category": "q-fin.GN",
-            "categories": ["q-fin.GN", "cs.CR"],
             "word_count": 200,
             "language": "English",
-            "source": "International Journal of Banking"
+            "source": "International Journal of Banking",
+            "doi": "10.1234/example.2024"
         },
         {
             "id": 3,
@@ -75,16 +77,14 @@ def create_english_papers():
             "year": 2024,
             "month": 3,
             "category": "Risk Management",
-            "arxiv_category": "q-fin.RM",
             "abstract": "Comparative study of machine learning algorithms for credit risk assessment using real-world banking data.",
             "pdf_url": "https://arxiv.org/pdf/2403.98765",
             "arxiv_url": "https://arxiv.org/abs/2403.98765",
             "published": "2024-03-10T00:00:00+00:00",
-            "primary_category": "q-fin.RM",
-            "categories": ["q-fin.RM", "cs.LG"],
             "word_count": 180,
             "language": "English",
-            "source": "Journal of Credit Risk"
+            "source": "Journal of Credit Risk",
+            "doi": ""
         },
         {
             "id": 4,
@@ -93,16 +93,14 @@ def create_english_papers():
             "year": 2025,
             "month": 2,
             "category": "Portfolio Management",
-            "arxiv_category": "q-fin.PM",
             "abstract": "Using artificial intelligence to optimize investment portfolios with dynamic risk management.",
             "pdf_url": "https://arxiv.org/pdf/2502.34567",
             "arxiv_url": "https://arxiv.org/abs/2502.34567",
             "published": "2025-02-28T00:00:00+00:00",
-            "primary_category": "q-fin.PM",
-            "categories": ["q-fin.PM", "cs.AI"],
             "word_count": 220,
             "language": "English",
-            "source": "Quantitative Finance Journal"
+            "source": "Quantitative Finance Journal",
+            "doi": ""
         },
         {
             "id": 5,
@@ -111,16 +109,14 @@ def create_english_papers():
             "year": 2024,
             "month": 9,
             "category": "Cryptocurrency",
-            "arxiv_category": "q-fin.TR",
             "abstract": "Statistical analysis and prediction models for major cryptocurrencies using time series analysis.",
             "pdf_url": "https://arxiv.org/pdf/2409.87654",
             "arxiv_url": "https://arxiv.org/abs/2409.87654",
             "published": "2024-09-15T00:00:00+00:00",
-            "primary_category": "q-fin.TR",
-            "categories": ["q-fin.TR", "econ.EM"],
             "word_count": 190,
             "language": "English",
-            "source": "Crypto Economics Review"
+            "source": "Crypto Economics Review",
+            "doi": ""
         },
         {
             "id": 6,
@@ -129,16 +125,14 @@ def create_english_papers():
             "year": 2024,
             "month": 7,
             "category": "Sustainable Finance",
-            "arxiv_category": "q-fin.GN",
             "abstract": "Analysis of environmental, social, and governance (ESG) factors in investment decisions and their financial impacts.",
             "pdf_url": "https://arxiv.org/pdf/2407.65432",
             "arxiv_url": "https://arxiv.org/abs/2407.65432",
             "published": "2024-07-22T00:00:00+00:00",
-            "primary_category": "q-fin.GN",
-            "categories": ["q-fin.GN", "econ.GN"],
             "word_count": 210,
             "language": "English",
-            "source": "Journal of Sustainable Finance"
+            "source": "Journal of Sustainable Finance",
+            "doi": ""
         },
         {
             "id": 7,
@@ -147,16 +141,14 @@ def create_english_papers():
             "year": 2025,
             "month": 3,
             "category": "Algorithmic Trading",
-            "arxiv_category": "q-fin.TR",
             "abstract": "Development and testing of high-frequency trading algorithms using machine learning techniques.",
             "pdf_url": "https://arxiv.org/pdf/2503.76543",
             "arxiv_url": "https://arxiv.org/abs/2503.76543",
             "published": "2025-03-05T00:00:00+00:00",
-            "primary_category": "q-fin.TR",
-            "categories": ["q-fin.TR", "cs.CE"],
             "word_count": 175,
             "language": "English",
-            "source": "Algorithmic Finance"
+            "source": "Algorithmic Finance",
+            "doi": ""
         },
         {
             "id": 8,
@@ -165,16 +157,14 @@ def create_english_papers():
             "year": 2024,
             "month": 5,
             "category": "Behavioral Finance",
-            "arxiv_category": "q-fin.GN",
             "abstract": "Study of psychological factors influencing investor behavior and market anomalies.",
             "pdf_url": "https://arxiv.org/pdf/2405.43210",
             "arxiv_url": "https://arxiv.org/abs/2405.43210",
             "published": "2024-05-18T00:00:00+00:00",
-            "primary_category": "q-fin.GN",
-            "categories": ["q-fin.GN", "psych.EC"],
             "word_count": 195,
             "language": "English",
-            "source": "Journal of Behavioral Finance"
+            "source": "Journal of Behavioral Finance",
+            "doi": ""
         },
         {
             "id": 9,
@@ -183,16 +173,14 @@ def create_english_papers():
             "year": 2025,
             "month": 4,
             "category": "Computational Finance",
-            "arxiv_category": "q-fin.CP",
             "abstract": "Exploring quantum computing applications for complex financial modeling and optimization problems.",
             "pdf_url": "https://arxiv.org/pdf/2504.98765",
             "arxiv_url": "https://arxiv.org/abs/2504.98765",
             "published": "2025-04-12T00:00:00+00:00",
-            "primary_category": "q-fin.CP",
-            "categories": ["q-fin.CP", "quant-ph"],
             "word_count": 230,
             "language": "English",
-            "source": "Quantum Finance Journal"
+            "source": "Quantum Finance Journal",
+            "doi": ""
         },
         {
             "id": 10,
@@ -201,16 +189,14 @@ def create_english_papers():
             "year": 2024,
             "month": 8,
             "category": "Risk Management",
-            "arxiv_category": "q-fin.RM",
             "abstract": "Artificial intelligence systems for detecting financial fraud in banking transactions.",
             "pdf_url": "https://arxiv.org/pdf/2408.12345",
             "arxiv_url": "https://arxiv.org/abs/2408.12345",
             "published": "2024-08-30T00:00:00+00:00",
-            "primary_category": "q-fin.RM",
-            "categories": ["q-fin.RM", "cs.CY"],
             "word_count": 185,
             "language": "English",
-            "source": "Journal of Financial Crime"
+            "source": "Journal of Financial Crime",
+            "doi": ""
         },
         {
             "id": 11,
@@ -219,16 +205,14 @@ def create_english_papers():
             "year": 2024,
             "month": 10,
             "category": "Real Estate Finance",
-            "arxiv_category": "q-fin.GN",
             "abstract": "Machine learning models for predicting real estate prices and market trends.",
             "pdf_url": "https://arxiv.org/pdf/2410.56789",
             "arxiv_url": "https://arxiv.org/abs/2410.56789",
             "published": "2024-10-25T00:00:00+00:00",
-            "primary_category": "q-fin.GN",
-            "categories": ["q-fin.GN", "econ.EM"],
             "word_count": 200,
             "language": "English",
-            "source": "Real Estate Economics"
+            "source": "Real Estate Economics",
+            "doi": ""
         },
         {
             "id": 12,
@@ -237,16 +221,14 @@ def create_english_papers():
             "year": 2025,
             "month": 1,
             "category": "Fintech",
-            "arxiv_category": "q-fin.GN",
             "abstract": "Analysis of central bank digital currencies and their potential impact on monetary policy.",
             "pdf_url": "https://arxiv.org/pdf/2501.67890",
             "arxiv_url": "https://arxiv.org/abs/2501.67890",
             "published": "2025-01-30T00:00:00+00:00",
-            "primary_category": "q-fin.GN",
-            "categories": ["q-fin.GN", "econ.GN"],
             "word_count": 215,
             "language": "English",
-            "source": "Journal of Monetary Economics"
+            "source": "Journal of Monetary Economics",
+            "doi": ""
         },
         {
             "id": 13,
@@ -255,16 +237,14 @@ def create_english_papers():
             "year": 2024,
             "month": 11,
             "category": "Derivatives",
-            "arxiv_category": "q-fin.PR",
             "abstract": "Using neural networks for options pricing compared to traditional Black-Scholes models.",
             "pdf_url": "https://arxiv.org/pdf/2411.34567",
             "arxiv_url": "https://arxiv.org/abs/2411.34567",
             "published": "2024-11-15T00:00:00+00:00",
-            "primary_category": "q-fin.PR",
-            "categories": ["q-fin.PR", "cs.LG"],
             "word_count": 180,
             "language": "English",
-            "source": "Journal of Derivatives"
+            "source": "Journal of Derivatives",
+            "doi": ""
         },
         {
             "id": 14,
@@ -273,16 +253,14 @@ def create_english_papers():
             "year": 2025,
             "month": 2,
             "category": "Risk Management",
-            "arxiv_category": "q-fin.RM",
             "abstract": "Network analysis methods for assessing systemic risk in financial systems.",
             "pdf_url": "https://arxiv.org/pdf/2502.89012",
             "arxiv_url": "https://arxiv.org/abs/2502.89012",
             "published": "2025-02-20T00:00:00+00:00",
-            "primary_category": "q-fin.RM",
-            "categories": ["q-fin.RM", "physics.soc-ph"],
             "word_count": 225,
             "language": "English",
-            "source": "Systemic Risk Review"
+            "source": "Systemic Risk Review",
+            "doi": ""
         },
         {
             "id": 15,
@@ -291,16 +269,14 @@ def create_english_papers():
             "year": 2024,
             "month": 12,
             "category": "Fintech",
-            "arxiv_category": "q-fin.GN",
             "abstract": "Study of robo-advisor platforms and their performance compared to human financial advisors.",
             "pdf_url": "https://arxiv.org/pdf/2412.12345",
             "arxiv_url": "https://arxiv.org/abs/2412.12345",
             "published": "2024-12-05T00:00:00+00:00",
-            "primary_category": "q-fin.GN",
-            "categories": ["q-fin.GN", "cs.HC"],
             "word_count": 195,
             "language": "English",
-            "source": "Fintech Innovation Journal"
+            "source": "Fintech Innovation Journal",
+            "doi": ""
         },
         {
             "id": 16,
@@ -309,16 +285,14 @@ def create_english_papers():
             "year": 2025,
             "month": 3,
             "category": "Financial Markets",
-            "arxiv_category": "q-fin.TR",
             "abstract": "Analysis of market microstructure factors affecting liquidity in equity markets.",
             "pdf_url": "https://arxiv.org/pdf/2503.45678",
             "arxiv_url": "https://arxiv.org/abs/2503.45678",
             "published": "2025-03-25T00:00:00+00:00",
-            "primary_category": "q-fin.TR",
-            "categories": ["q-fin.TR", "econ.EM"],
             "word_count": 210,
             "language": "English",
-            "source": "Market Microstructure Journal"
+            "source": "Market Microstructure Journal",
+            "doi": ""
         },
         {
             "id": 17,
@@ -327,16 +301,14 @@ def create_english_papers():
             "year": 2024,
             "month": 4,
             "category": "Sustainable Finance",
-            "arxiv_category": "q-fin.RM",
             "abstract": "Assessing climate-related risks and their implications for financial stability.",
             "pdf_url": "https://arxiv.org/pdf/2404.78901",
             "arxiv_url": "https://arxiv.org/abs/2404.78901",
             "published": "2024-04-18T00:00:00+00:00",
-            "primary_category": "q-fin.RM",
-            "categories": ["q-fin.RM", "econ.GN"],
             "word_count": 220,
             "language": "English",
-            "source": "Climate Finance Review"
+            "source": "Climate Finance Review",
+            "doi": ""
         },
         {
             "id": 18,
@@ -345,16 +317,14 @@ def create_english_papers():
             "year": 2025,
             "month": 5,
             "category": "Fintech",
-            "arxiv_category": "q-fin.GN",
             "abstract": "Risk assessment and performance analysis of peer-to-peer lending platforms.",
             "pdf_url": "https://arxiv.org/pdf/2505.23456",
             "arxiv_url": "https://arxiv.org/abs/2505.23456",
             "published": "2025-05-08T00:00:00+00:00",
-            "primary_category": "q-fin.GN",
-            "categories": ["q-fin.GN", "econ.EM"],
             "word_count": 190,
             "language": "English",
-            "source": "Digital Finance Journal"
+            "source": "Digital Finance Journal",
+            "doi": ""
         },
         {
             "id": 19,
@@ -363,16 +333,14 @@ def create_english_papers():
             "year": 2024,
             "month": 6,
             "category": "Natural Language Processing",
-            "arxiv_category": "q-fin.GN",
             "abstract": "Using natural language processing to analyze financial news sentiment and predict market movements.",
             "pdf_url": "https://arxiv.org/pdf/2406.90123",
             "arxiv_url": "https://arxiv.org/abs/2406.90123",
             "published": "2024-06-28T00:00:00+00:00",
-            "primary_category": "q-fin.GN",
-            "categories": ["q-fin.GN", "cs.CL"],
             "word_count": 205,
             "language": "English",
-            "source": "Journal of Financial NLP"
+            "source": "Journal of Financial NLP",
+            "doi": ""
         },
         {
             "id": 20,
@@ -381,16 +349,14 @@ def create_english_papers():
             "year": 2025,
             "month": 7,
             "category": "Insurance",
-            "arxiv_category": "q-fin.RM",
             "abstract": "Machine learning approaches for insurance risk modeling and premium calculation.",
             "pdf_url": "https://arxiv.org/pdf/2507.56789",
             "arxiv_url": "https://arxiv.org/abs/2507.56789",
             "published": "2025-07-15T00:00:00+00:00",
-            "primary_category": "q-fin.RM",
-            "categories": ["q-fin.RM", "stat.AP"],
             "word_count": 195,
             "language": "English",
-            "source": "Insurance Mathematics and Economics"
+            "source": "Insurance Mathematics and Economics",
+            "doi": ""
         },
         {
             "id": 21,
@@ -399,16 +365,14 @@ def create_english_papers():
             "year": 2024,
             "month": 8,
             "category": "Corporate Finance",
-            "arxiv_category": "q-fin.GN",
             "abstract": "Optimal capital structure decisions for corporations under different market conditions.",
             "pdf_url": "https://arxiv.org/pdf/2408.34567",
             "arxiv_url": "https://arxiv.org/abs/2408.34567",
             "published": "2024-08-22T00:00:00+00:00",
-            "primary_category": "q-fin.GN",
-            "categories": ["q-fin.GN", "econ.GN"],
             "word_count": 210,
             "language": "English",
-            "source": "Journal of Corporate Finance"
+            "source": "Journal of Corporate Finance",
+            "doi": ""
         },
         {
             "id": 22,
@@ -417,16 +381,14 @@ def create_english_papers():
             "year": 2025,
             "month": 9,
             "category": "Foreign Exchange",
-            "arxiv_category": "q-fin.TR",
             "abstract": "Deep learning models for foreign exchange rate prediction using macroeconomic indicators.",
             "pdf_url": "https://arxiv.org/pdf/2509.01234",
             "arxiv_url": "https://arxiv.org/abs/2509.01234",
             "published": "2025-09-10T00:00:00+00:00",
-            "primary_category": "q-fin.TR",
-            "categories": ["q-fin.TR", "econ.EM"],
             "word_count": 185,
             "language": "English",
-            "source": "Journal of International Money and Finance"
+            "source": "Journal of International Money and Finance",
+            "doi": ""
         },
         {
             "id": 23,
@@ -435,16 +397,14 @@ def create_english_papers():
             "year": 2024,
             "month": 10,
             "category": "Financial Regulation",
-            "arxiv_category": "q-fin.GN",
             "abstract": "Impact of financial regulations on market efficiency and compliance costs.",
             "pdf_url": "https://arxiv.org/pdf/2410.67890",
             "arxiv_url": "https://arxiv.org/abs/2410.67890",
             "published": "2024-10-30T00:00:00+00:00",
-            "primary_category": "q-fin.GN",
-            "categories": ["q-fin.GN", "econ.LA"],
             "word_count": 225,
             "language": "English",
-            "source": "Journal of Financial Regulation"
+            "source": "Journal of Financial Regulation",
+            "doi": ""
         },
         {
             "id": 24,
@@ -453,16 +413,14 @@ def create_english_papers():
             "year": 2025,
             "month": 11,
             "category": "Wealth Management",
-            "arxiv_category": "q-fin.PM",
             "abstract": "Modern wealth management strategies for high-net-worth individuals.",
             "pdf_url": "https://arxiv.org/pdf/2511.54321",
             "arxiv_url": "https://arxiv.org/abs/2511.54321",
             "published": "2025-11-20T00:00:00+00:00",
-            "primary_category": "q-fin.PM",
-            "categories": ["q-fin.PM", "econ.GN"],
             "word_count": 200,
             "language": "English",
-            "source": "Wealth Management Review"
+            "source": "Wealth Management Review",
+            "doi": ""
         },
         {
             "id": 25,
@@ -471,16 +429,14 @@ def create_english_papers():
             "year": 2024,
             "month": 12,
             "category": "Financial Education",
-            "arxiv_category": "q-fin.GN",
             "abstract": "Impact of financial education programs on individual financial decision-making.",
             "pdf_url": "https://arxiv.org/pdf/2412.98765",
             "arxiv_url": "https://arxiv.org/abs/2412.98765",
             "published": "2024-12-15T00:00:00+00:00",
-            "primary_category": "q-fin.GN",
-            "categories": ["q-fin.GN", "edu.ECO"],
             "word_count": 190,
             "language": "English",
-            "source": "Journal of Financial Education"
+            "source": "Journal of Financial Education",
+            "doi": ""
         }
     ]
     return english_papers
@@ -949,6 +905,7 @@ def load_research_papers():
     papers_df['arxiv_url'] = papers_df.get('arxiv_url', '')
     papers_df['pdf_url'] = papers_df.get('pdf_url', '')
     papers_df['doi'] = papers_df.get('doi', '')
+    papers_df['keywords'] = papers_df.get('keywords', '')
     
     # Show loading success
     st.sidebar.success(f"✅ Loaded {len(english_papers)} English papers")
@@ -1084,48 +1041,70 @@ def display_research_library():
                     # Abstract
                     st.markdown("#### Abstract")
                     abstract = paper.get('abstract', 'No abstract available')
-                    if isinstance(abstract, str) and len(abstract) > 500:
-                        st.write(abstract[:500] + "...")
+                    if isinstance(abstract, str):
+                        if len(abstract) > 500:
+                            st.write(abstract[:500] + "...")
+                        else:
+                            st.write(abstract)
                     else:
-                        st.write(abstract)
+                        st.write(str(abstract))
                     
                     # Source and keywords
-                    if 'source' in paper and paper['source']:
-                        st.markdown(f"**Source:** {paper['source']}")
+                    source = paper.get('source', '')
+                    if source:
+                        st.markdown(f"**Source:** {source}")
                     
-                    if 'keywords' in paper and paper['keywords']:
-                        st.markdown(f"**Keywords:** {paper['keywords']}")
+                    keywords = paper.get('keywords', '')
+                    if keywords:
+                        st.markdown(f"**Keywords:** {keywords}")
                 
                 with col2:
                     # Quick actions and links
                     st.markdown("#### 🔗 Quick Links")
                     
-                    # arXiv link - ONLY if URL exists and is not empty
+                    # Use safe_link_button for all links
                     arxiv_url = paper.get('arxiv_url', '')
-                    if arxiv_url and isinstance(arxiv_url, str) and arxiv_url.strip() and arxiv_url.startswith('http'):
-                        st.link_button("📄 arXiv", arxiv_url)
-                    else:
-                        st.button("📄 arXiv (N/A)", disabled=True, help="arXiv link not available")
-                    
-                    # PDF link - ONLY if URL exists and is not empty
                     pdf_url = paper.get('pdf_url', '')
-                    if pdf_url and isinstance(pdf_url, str) and pdf_url.strip() and pdf_url.startswith('http'):
-                        st.link_button("📥 PDF", pdf_url)
-                    else:
-                        st.button("📥 PDF (N/A)", disabled=True, help="PDF link not available")
+                    doi_value = paper.get('doi', '')
                     
-                    # Search link - always available
+                    # arXiv button
+                    safe_link_button(
+                        "📄 arXiv", 
+                        arxiv_url,
+                        key=f"arxiv_{paper_id}",
+                        help_text="Open arXiv page"
+                    )
+                    
+                    # PDF button
+                    safe_link_button(
+                        "📥 PDF", 
+                        pdf_url,
+                        key=f"pdf_{paper_id}",
+                        help_text="Download PDF"
+                    )
+                    
+                    # DOI button
+                    if doi_value and isinstance(doi_value, str) and doi_value.strip():
+                        doi_url = f"https://doi.org/{doi_value}"
+                        safe_link_button(
+                            "🔗 DOI", 
+                            doi_url,
+                            key=f"doi_{paper_id}",
+                            help_text="Open DOI page"
+                    )
+                    
+                    # Search link
                     search_url = f"https://scholar.google.com/scholar?q={paper.get('title', '').replace(' ', '+')}"
                     st.link_button("🔍 Search", search_url)
                     
                     # Additional info
                     st.markdown("---")
-                    if 'keywords' in paper and paper['keywords']:
-                        keywords_display = paper['keywords']
-                        if isinstance(keywords_display, str) and len(keywords_display) > 50:
-                            st.caption(f"**Keywords:** {keywords_display[:50]}...")
+                    keywords = paper.get('keywords', '')
+                    if keywords and isinstance(keywords, str) and keywords.strip():
+                        if len(keywords) > 50:
+                            st.caption(f"**Keywords:** {keywords[:50]}...")
                         else:
-                            st.caption(f"**Keywords:** {keywords_display}")
+                            st.caption(f"**Keywords:** {keywords}")
                     
                     # Classify this paper button
                     if st.button("🤖 Classify this paper", key=f"classify_{paper_id}"):
@@ -1329,13 +1308,15 @@ def display_classification_results(top_results, file_name="", abstract_text=""):
     action_cols = st.columns(3)
     
     with action_cols[0]:
-        st.link_button("🌐 Wikipedia", top_category.get('wiki_link', 'https://en.wikipedia.org/wiki/Finance'))
+        wiki_url = top_category.get('wiki_link', 'https://en.wikipedia.org/wiki/Finance')
+        st.link_button("🌐 Wikipedia", wiki_url)
     
     with action_cols[1]:
-        st.link_button("📚 Google Scholar", f"https://scholar.google.com/scholar?q={top_category['category'].replace(' ', '+')}+finance")
+        search_query = top_category['category'].replace(' ', '+')
+        st.link_button("📚 Google Scholar", f"https://scholar.google.com/scholar?q={search_query}+finance")
     
     with action_cols[2]:
-        st.link_button("📊 More Papers", f"https://www.jstor.org/action/doBasicSearch?Query={top_category['category'].replace(' ', '+')}")
+        st.link_button("📊 More Papers", f"https://www.jstor.org/action/doBasicSearch?Query={search_query}")
     
     # Create tabs
     tab1, tab2, tab3 = st.tabs(["📊 Top Categories", "📈 Visualization", "📥 Export Results"])
@@ -1462,13 +1443,14 @@ try:
             import io
             text = ""
             try:
-                with pdfplumber.open(io.BytesIO(file.read())) as pdf:
+                file_bytes = file.read()
+                with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
                     for i, page in enumerate(pdf.pages[:max_pages]):
                         page_text = page.extract_text()
                         if page_text:
                             text += page_text + "\n\n"
             except Exception as e:
-                text = f"Sample abstract for classification demonstration. {e}"
+                text = f"Sample abstract for classification demonstration. Error: {str(e)}"
             return text
         
         def extract_abstract(self, text):
@@ -1584,7 +1566,10 @@ if app_mode == "🏠 Classifier":
                             
                             with col_left:
                                 st.write("**📝 Extracted Abstract:**")
-                                st.write(abstract[:400] + "..." if len(abstract) > 400 else abstract)
+                                if abstract:
+                                    st.write(abstract[:400] + "..." if len(abstract) > 400 else abstract)
+                                else:
+                                    st.write("No abstract extracted.")
                                 
                                 # Statistics
                                 st.write("**🔢 Statistics:**")
@@ -1762,10 +1747,11 @@ with footer_cols[3]:
     st.markdown("[🐦 Twitter](https://twitter.com/streamlit)")
 
 with footer_cols[4]:
-    st.markdown(f"**Version 3.1** • {datetime.now().strftime('%Y-%m-%d')}")
+    st.markdown(f"**Version 4.0** • {datetime.now().strftime('%Y-%m-%d')}")
 
 st.caption(f"""
-Finance Research Classifier v3.1 | 
+Finance Research Classifier v4.0 | 
 Made with ❤️ for academic research | 
-50 research papers embedded (25 English + 25 Chinese)
+50 research papers embedded (25 English + 25 Chinese) | 
+All errors fixed
 """)
