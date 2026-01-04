@@ -6,6 +6,7 @@ import numpy as np
 import json
 import io
 from datetime import datetime
+import os
 
 # Add src folder to path
 sys.path.append('src')
@@ -29,29 +30,152 @@ with col2:
 with col3:
     st.markdown(f"**Numpy** {np.__version__}")
 
-# ===== LOAD RESEARCH PAPERS FROM JSON =====
+# ===== LOAD RESEARCH PAPERS FROM JSON AND EXCEL =====
 @st.cache_data
 def load_research_papers():
+    """Load both English (JSON) and Chinese (Excel) papers"""
+    all_papers = []
+    
+    # Load English papers from JSON
     try:
-        with open('research_papers.json', 'r', encoding='utf-8') as f:
-            papers = json.load(f)
+        if os.path.exists('research_papers.json'):
+            with open('research_papers.json', 'r', encoding='utf-8') as f:
+                english_papers = json.load(f)
+            
+            # Add language tag and convert format
+            for paper in english_papers:
+                paper['language'] = 'English'
+                paper['source'] = 'arXiv'
+                # Ensure all required fields exist
+                if 'authors' not in paper:
+                    paper['authors'] = []
+                if 'category' not in paper:
+                    paper['category'] = paper.get('arxiv_category', 'General Finance')
+                if 'word_count' not in paper:
+                    paper['word_count'] = len(paper.get('abstract', '').split())
+                if 'id' not in paper:
+                    paper['id'] = hash(paper.get('title', '')) % 100000
+            
+            all_papers.extend(english_papers)
+            st.sidebar.success(f"✅ Loaded {len(english_papers)} English papers")
+        else:
+            st.sidebar.warning("⚠️ research_papers.json not found - using sample data")
+            # Create sample data if file not found
+            all_papers = create_sample_papers()
+    except Exception as e:
+        st.sidebar.error(f"❌ Error loading JSON: {e}")
+        all_papers = create_sample_papers()
+    
+    # Load Chinese papers from Excel
+    try:
+        if os.path.exists('CNKI-data.xls'):
+            # Read the Excel file
+            df = pd.read_excel('CNKI-data.xls', sheet_name=None)
+            
+            # Process all sheets
+            paper_id = 1000  # Start ID for Chinese papers
+            
+            for sheet_name, sheet_data in df.items():
+                for _, row in sheet_data.iterrows():
+                    # Check if this is a paper row (has author and title)
+                    author = row.get('Author-作者') or row.get('Author-作者 ')
+                    title = row.get('Title-题名') or row.get('Title-题名 ')
+                    
+                    if pd.notna(author) and pd.notna(title):
+                        # Get year
+                        year_val = row.get('Year-年')
+                        if pd.isna(year_val):
+                            pub_time = row.get('PubTime-出版日期')
+                            if pd.notna(pub_time) and isinstance(pub_time, str):
+                                year_val = pub_time[:4]
+                        
+                        # Get abstract
+                        abstract = row.get('摘要') or row.get('Abstract-摘要') or ''
+                        
+                        paper = {
+                            'id': paper_id,
+                            'title': str(title).strip(),
+                            'authors': [a.strip() for a in str(author).split(',') if a.strip()],
+                            'source': str(row.get('Source-文献来源') or row.get('Source-报纸名') or '').strip(),
+                            'year': int(year_val) if pd.notna(year_val) and str(year_val).isdigit() else 2025,
+                            'abstract': str(abstract).strip(),
+                            'language': 'Chinese',
+                            'category': 'Chinese Finance Research',
+                            'page_count': row.get('PageCount-页码') or row.get('Page-页码', ''),
+                            'keywords': str(row.get('关键词', '')).strip(),
+                            'published': f"{int(year_val) if pd.notna(year_val) and str(year_val).isdigit() else 2025}-01-01",
+                            'word_count': len(str(abstract).split()),
+                            'pdf_url': '',
+                            'arxiv_url': '',
+                            'doi': ''
+                        }
+                        all_papers.append(paper)
+                        paper_id += 1
+            
+            st.sidebar.success(f"✅ Loaded {paper_id - 1000} Chinese papers")
+        else:
+            st.sidebar.warning("⚠️ CNKI-data.xls not found")
+    except Exception as e:
+        st.sidebar.error(f"❌ Error loading Chinese papers: {e}")
+    
+    # Create DataFrame
+    if all_papers:
+        papers_df = pd.DataFrame(all_papers)
         
-        # Convert to DataFrame for easier manipulation
-        papers_df = pd.DataFrame(papers)
-        
-        # Convert date columns to datetime
+        # Convert date columns
         if 'published' in papers_df.columns:
-            papers_df['published_date'] = pd.to_datetime(papers_df['published'])
+            papers_df['published_date'] = pd.to_datetime(papers_df['published'], errors='coerce')
             papers_df['year_month'] = papers_df['published_date'].dt.strftime('%Y-%m')
+        
+        # Extract year if not present
+        if 'year' not in papers_df.columns and 'published_date' in papers_df.columns:
+            papers_df['year'] = papers_df['published_date'].dt.year
         
         # Clean up category names
         if 'category' in papers_df.columns:
             papers_df['category_clean'] = papers_df['category'].str.replace('_', ' ').str.title()
         
-        return papers_df, papers
-    except Exception as e:
-        st.error(f"Error loading research papers: {e}")
-        return pd.DataFrame(), []
+        # Fill missing values
+        if 'language' not in papers_df.columns:
+            papers_df['language'] = 'English'
+        
+        return papers_df, all_papers
+    
+    return pd.DataFrame(), []
+
+def create_sample_papers():
+    """Create sample papers if data files are not found"""
+    sample_papers = [
+        {
+            'id': 1,
+            'title': 'Deep Learning for Financial Time Series Prediction',
+            'authors': ['John Smith', 'Jane Doe'],
+            'year': 2025,
+            'abstract': 'This paper explores the application of deep learning techniques for financial time series prediction...',
+            'category': 'Machine Learning in Finance',
+            'language': 'English',
+            'source': 'Journal of Financial Data Science',
+            'word_count': 150,
+            'published': '2025-01-15',
+            'pdf_url': 'https://arxiv.org/pdf/2501.12345',
+            'arxiv_url': 'https://arxiv.org/abs/2501.12345'
+        },
+        {
+            'id': 2,
+            'title': 'Blockchain Applications in Banking',
+            'authors': ['Alice Johnson', 'Bob Williams'],
+            'year': 2024,
+            'abstract': 'An analysis of blockchain technology applications in the banking sector...',
+            'category': 'Fintech',
+            'language': 'English',
+            'source': 'International Journal of Banking',
+            'word_count': 200,
+            'published': '2024-06-20',
+            'pdf_url': 'https://arxiv.org/pdf/2406.54321',
+            'arxiv_url': 'https://arxiv.org/abs/2406.54321'
+        }
+    ]
+    return sample_papers
 
 # Load papers
 papers_df, papers_list = load_research_papers()
@@ -63,7 +187,7 @@ def display_research_library():
     
     # Display statistics
     if not papers_df.empty:
-        stats_cols = st.columns(4)
+        stats_cols = st.columns(5)
         with stats_cols[0]:
             st.metric("Total Papers", len(papers_df))
         with stats_cols[1]:
@@ -71,18 +195,21 @@ def display_research_library():
             st.metric("Categories", unique_categories)
         with stats_cols[2]:
             if 'year' in papers_df.columns:
-                recent_year = papers_df['year'].max()
+                recent_year = int(papers_df['year'].max()) if pd.notna(papers_df['year'].max()) else 2025
                 st.metric("Latest Year", recent_year)
         with stats_cols[3]:
-            if 'authors' in papers_df.columns:
-                avg_authors = papers_df['authors'].apply(lambda x: len(x) if isinstance(x, list) else 1).mean()
-                st.metric("Avg Authors", f"{avg_authors:.1f}")
+            if 'language' in papers_df.columns:
+                languages = papers_df['language'].unique()
+                st.metric("Languages", len(languages))
+        with stats_cols[4]:
+            total_words = papers_df['word_count'].sum() if 'word_count' in papers_df.columns else 0
+            st.metric("Total Words", f"{total_words:,}")
     
     # Search and filter section
     with st.container():
         st.subheader("🔍 Search & Filter")
         
-        search_cols = st.columns([3, 1, 1, 1])
+        search_cols = st.columns([2, 1, 1, 1, 1])
         with search_cols[0]:
             search_query = st.text_input("Search papers (title, authors, abstract)", "")
         
@@ -94,9 +221,15 @@ def display_research_library():
         with search_cols[2]:
             if 'year' in papers_df.columns:
                 years = sorted(papers_df['year'].dropna().unique().tolist(), reverse=True)
+                years = [int(y) for y in years if pd.notna(y)]
                 selected_year = st.selectbox("Year", ["All"] + [str(y) for y in years])
         
         with search_cols[3]:
+            if 'language' in papers_df.columns:
+                languages = sorted(papers_df['language'].dropna().unique().tolist())
+                selected_language = st.selectbox("Language", ["All"] + languages)
+        
+        with search_cols[4]:
             sort_by = st.selectbox("Sort by", ["Newest", "Oldest", "Title A-Z", "Title Z-A"])
     
     # Apply filters
@@ -106,8 +239,8 @@ def display_research_library():
         # Apply search
         if search_query:
             mask = (
-                filtered_df['title'].str.contains(search_query, case=False, na=False) |
-                filtered_df['abstract'].str.contains(search_query, case=False, na=False) |
+                filtered_df['title'].astype(str).str.contains(search_query, case=False, na=False) |
+                filtered_df['abstract'].astype(str).str.contains(search_query, case=False, na=False) |
                 filtered_df['authors'].apply(lambda x: search_query.lower() in str(x).lower() if x else False)
             )
             filtered_df = filtered_df[mask]
@@ -120,13 +253,17 @@ def display_research_library():
         if 'year' in filtered_df.columns and selected_year != "All":
             filtered_df = filtered_df[filtered_df['year'] == int(selected_year)]
         
+        # Apply language filter
+        if 'language' in filtered_df.columns and selected_language != "All":
+            filtered_df = filtered_df[filtered_df['language'] == selected_language]
+        
         # Apply sorting
         if sort_by == "Newest":
-            if 'published_date' in filtered_df.columns:
-                filtered_df = filtered_df.sort_values('published_date', ascending=False)
+            if 'year' in filtered_df.columns:
+                filtered_df = filtered_df.sort_values('year', ascending=False)
         elif sort_by == "Oldest":
-            if 'published_date' in filtered_df.columns:
-                filtered_df = filtered_df.sort_values('published_date', ascending=True)
+            if 'year' in filtered_df.columns:
+                filtered_df = filtered_df.sort_values('year', ascending=True)
         elif sort_by == "Title A-Z":
             filtered_df = filtered_df.sort_values('title')
         elif sort_by == "Title Z-A":
@@ -140,7 +277,7 @@ def display_research_library():
         
         # Display papers in a nice format
         for idx, paper in filtered_df.iterrows():
-            with st.expander(f"📄 **{paper.get('title', 'Untitled')}**", expanded=False):
+            with st.expander(f"📄 **{paper.get('title', 'Untitled')}** ({paper.get('language', 'Unknown')})", expanded=False):
                 col1, col2 = st.columns([3, 1])
                 
                 with col1:
@@ -149,34 +286,38 @@ def display_research_library():
                     
                     # Authors
                     authors = paper.get('authors', [])
-                    if authors:
-                        authors_str = ", ".join(authors) if isinstance(authors, list) else str(authors)
+                    if authors and isinstance(authors, list):
+                        authors_str = ", ".join(authors)
                         st.markdown(f"**Authors:** {authors_str}")
+                    elif authors:
+                        st.markdown(f"**Authors:** {authors}")
                     
                     # Year and category
-                    meta_cols = st.columns(3)
+                    meta_cols = st.columns(4)
                     with meta_cols[0]:
-                        if 'year' in paper:
-                            st.metric("Year", paper['year'])
+                        if 'year' in paper and pd.notna(paper['year']):
+                            st.metric("Year", int(paper['year']))
                     with meta_cols[1]:
                         if 'category' in paper:
                             st.metric("Category", paper['category'])
                     with meta_cols[2]:
+                        if 'language' in paper:
+                            st.metric("Language", paper['language'])
+                    with meta_cols[3]:
                         if 'word_count' in paper:
                             st.metric("Words", paper['word_count'])
                     
                     # Abstract
                     st.markdown("#### Abstract")
                     abstract = paper.get('abstract', 'No abstract available')
-                    st.write(abstract[:500] + "..." if len(abstract) > 500 else abstract)
+                    if isinstance(abstract, str) and len(abstract) > 500:
+                        st.write(abstract[:500] + "...")
+                    else:
+                        st.write(abstract)
                     
-                    # Categories
-                    if 'categories' in paper and paper['categories']:
-                        st.markdown("#### Categories")
-                        categories = paper['categories']
-                        if isinstance(categories, list):
-                            categories_str = ", ".join(categories)
-                            st.write(categories_str)
+                    # Source
+                    if 'source' in paper and paper['source']:
+                        st.markdown(f"**Source:** {paper['source']}")
                 
                 with col2:
                     # Quick actions and links
@@ -193,11 +334,14 @@ def display_research_library():
                     # DOI link
                     if 'doi' in paper and paper['doi']:
                         st.link_button("🔗 DOI", f"https://doi.org/{paper['doi']}")
+                    elif 'source' in paper and paper['source']:
+                        search_url = f"https://scholar.google.com/scholar?q={paper.get('title', '').replace(' ', '+')}"
+                        st.link_button("🔍 Search", search_url)
                     
                     # Additional info
                     st.markdown("---")
-                    if 'comment' in paper and paper['comment']:
-                        st.caption(f"**Note:** {paper['comment']}")
+                    if 'keywords' in paper and paper['keywords']:
+                        st.caption(f"**Keywords:** {paper['keywords']}")
                     
                     # Classify this paper button
                     if st.button("🤖 Classify this paper", key=f"classify_{paper.get('id', idx)}"):
@@ -286,11 +430,18 @@ def classify_with_confidence(text, top_k=5, improve_confidence=True):
         "Portfolio Theory": "https://en.wikipedia.org/wiki/Modern_portfolio_theory",
         "Financial Crises": "https://en.wikipedia.org/wiki/Financial_crisis",
         "Monetary Policy": "https://en.wikipedia.org/wiki/Monetary_policy",
-        "Fiscal Policy": "https://en.wikipedia.org/wiki/Fiscal_policy"
+        "Fiscal Policy": "https://en.wikipedia.org/wiki/Fiscal_policy",
+        "Chinese Finance Research": "https://en.wikipedia.org/wiki/Finance_in_China",
+        "Machine Learning in Finance": "https://en.wikipedia.org/wiki/Machine_learning_in_finance"
     }
     
     # Generate more realistic confidence scores
-    np.random.seed(hash(text) % 10000)
+    if isinstance(text, str):
+        text_hash = hash(text) % 10000
+    else:
+        text_hash = 42
+    
+    np.random.seed(text_hash)
     
     if improve_confidence:
         # Generate higher, more realistic confidence scores
@@ -332,7 +483,7 @@ def classify_with_confidence(text, top_k=5, improve_confidence=True):
     
     return results
 
-# Function to display classification results (same as before, but I'm keeping it for completeness)
+# Function to display classification results
 def display_classification_results(top_results, file_name="", abstract_text=""):
     """
     Display classification results with enhanced visualization and clickable links
@@ -776,18 +927,61 @@ For questions or corrections, please contact the research team.
         "wiki_link": top_category.get('wiki_link', '')
     })
 
-# Try to import PDF processor
+# ===== PDF PROCESSOR =====
+pdf_available = False
 try:
-    from pdf_processor import PDFProcessor
-    pdf_processor = PDFProcessor()
+    import pdfplumber
     pdf_available = True
-    st.sidebar.success("✅ PDF processor loaded")
+    
+    class SimplePDFProcessor:
+        def extract_text(self, file, max_pages=3):
+            import pdfplumber
+            import io
+            text = ""
+            try:
+                with pdfplumber.open(io.BytesIO(file.read())) as pdf:
+                    for i, page in enumerate(pdf.pages[:max_pages]):
+                        page_text = page.extract_text()
+                        if page_text:
+                            text += page_text + "\n\n"
+            except Exception as e:
+                text = f"Error extracting text: {e}"
+            return text
+        
+        def extract_abstract(self, text):
+            # Simple abstract extraction - look for common patterns
+            lines = text.split('\n')
+            abstract = ""
+            
+            # Look for ABSTRACT, Abstract, or similar
+            for i, line in enumerate(lines):
+                line_lower = line.lower().strip()
+                if 'abstract' in line_lower and len(line_lower) < 30:
+                    # Found abstract header, take next few lines
+                    for j in range(i+1, min(i+10, len(lines))):
+                        if lines[j].strip():
+                            abstract += lines[j] + " "
+                    break
+            
+            # If no abstract found, take first few sentences
+            if not abstract:
+                sentences = text.replace('\n', ' ').split('.')
+                abstract = '.'.join(sentences[:3]) + '.'
+            
+            return abstract.strip()
+        
+        def count_words(self, text):
+            return len(text.split())
+    
+    pdf_processor = SimplePDFProcessor()
+    st.sidebar.success("✅ PDF processor ready")
+    
 except ImportError:
-    pdf_available = False
-    st.sidebar.warning("⚠️ PDF processor not available")
+    st.sidebar.warning("⚠️ Install pdfplumber for PDF processing: pip install pdfplumber")
+    pdf_processor = None
 except Exception as e:
-    pdf_available = False
     st.sidebar.error(f"❌ PDF processor error: {str(e)[:50]}")
+    pdf_processor = None
 
 # ===== MAIN APP NAVIGATION =====
 st.sidebar.header("📚 Navigation")
@@ -864,7 +1058,7 @@ if app_mode == "🏠 Classifier":
             # Create a card-like expander
             with st.expander(f"📋 **{file.name}** ({file.size/1024:.1f} KB)", expanded=i==0):
                 
-                if pdf_available:
+                if pdf_available and pdf_processor:
                     # Extract text from PDF
                     with st.spinner("Extracting text from PDF..."):
                         try:
@@ -985,20 +1179,26 @@ elif app_mode == "📊 Statistics":
     st.header("📊 Research Statistics")
     
     if not papers_df.empty:
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
         
         with col1:
             st.metric("Total Papers", len(papers_df))
         
         with col2:
             if 'year' in papers_df.columns:
-                recent_year = papers_df['year'].max()
+                recent_year = int(papers_df['year'].max()) if pd.notna(papers_df['year'].max()) else 2025
                 st.metric("Latest Year", recent_year)
         
         with col3:
             if 'category' in papers_df.columns:
                 unique_cats = papers_df['category'].nunique()
                 st.metric("Categories", unique_cats)
+        
+        with col4:
+            if 'language' in papers_df.columns:
+                english_count = len(papers_df[papers_df['language'] == 'English'])
+                chinese_count = len(papers_df[papers_df['language'] == 'Chinese'])
+                st.metric("English/Chinese", f"{english_count}/{chinese_count}")
         
         # Category distribution
         st.subheader("📈 Category Distribution")
@@ -1007,13 +1207,29 @@ elif app_mode == "📊 Statistics":
             category_counts.columns = ['Category', 'Count']
             
             fig = px.bar(
-                category_counts.head(10),
+                category_counts.head(15),
                 x='Category',
                 y='Count',
                 color='Count',
-                title="Top 10 Research Categories",
+                title="Top 15 Research Categories",
                 labels={'Count': 'Number of Papers', 'Category': 'Category'},
                 color_continuous_scale=px.colors.sequential.Viridis
+            )
+            fig.update_layout(xaxis_tickangle=-45)
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # Language distribution
+        st.subheader("🌐 Language Distribution")
+        if 'language' in papers_df.columns:
+            language_counts = papers_df['language'].value_counts().reset_index()
+            language_counts.columns = ['Language', 'Count']
+            
+            fig = px.pie(
+                language_counts,
+                values='Count',
+                names='Language',
+                title="Papers by Language",
+                hole=0.3
             )
             st.plotly_chart(fig, use_container_width=True)
         
@@ -1079,44 +1295,47 @@ if 'classification_history' in st.session_state and st.session_state.classificat
             history_df['category_link'] = history_df['predicted_category']
         
         # Display history table
-        st.dataframe(
-            history_df[['file_name', 'category_link', 'confidence', 'time_display']],
-            column_config={
-                "file_name": "File",
-                "category_link": st.column_config.TextColumn("Category", help="Click to learn more"),
-                "confidence": st.column_config.ProgressColumn(
-                    "Confidence",
-                    format="%.1f%%",
-                    min_value=0,
-                    max_value=100
-                ),
-                "time_display": "Time"
-            },
-            use_container_width=True,
-            hide_index=True
-        )
-        
-        # History actions
-        hist_cols = st.columns(3)
-        with hist_cols[0]:
-            if st.button("Clear History", type="secondary", use_container_width=True):
-                st.session_state.classification_history = []
-                st.rerun()
-        
-        with hist_cols[1]:
-            # Export history
-            if len(history_df) > 0:
-                history_csv = history_df.to_csv(index=False)
-                st.download_button(
-                    label="📥 Export History",
-                    data=history_csv,
-                    file_name=f"classification_history_{datetime.now().strftime('%Y%m%d')}.csv",
-                    mime="text/csv",
-                    use_container_width=True
-                )
-        
-        with hist_cols[2]:
-            st.link_button("📊 View Analytics", "#")
+        if not history_df.empty:
+            st.dataframe(
+                history_df[['file_name', 'category_link', 'confidence', 'time_display']],
+                column_config={
+                    "file_name": "File",
+                    "category_link": st.column_config.TextColumn("Category", help="Click to learn more"),
+                    "confidence": st.column_config.ProgressColumn(
+                        "Confidence",
+                        format="%.1f%%",
+                        min_value=0,
+                        max_value=100
+                    ),
+                    "time_display": "Time"
+                },
+                use_container_width=True,
+                hide_index=True
+            )
+            
+            # History actions
+            hist_cols = st.columns(3)
+            with hist_cols[0]:
+                if st.button("Clear History", type="secondary", use_container_width=True):
+                    st.session_state.classification_history = []
+                    st.rerun()
+            
+            with hist_cols[1]:
+                # Export history
+                if len(history_df) > 0:
+                    history_csv = history_df.to_csv(index=False)
+                    st.download_button(
+                        label="📥 Export History",
+                        data=history_csv,
+                        file_name=f"classification_history_{datetime.now().strftime('%Y%m%d')}.csv",
+                        mime="text/csv",
+                        use_container_width=True
+                    )
+            
+            with hist_cols[2]:
+                st.link_button("📊 View Analytics", "#")
+        else:
+            st.info("No classification history yet.")
 
 # Footer với clickable links
 st.markdown("---")
@@ -1135,10 +1354,11 @@ with footer_cols[3]:
     st.markdown("[🐦 Twitter](https://twitter.com/streamlit)")
 
 with footer_cols[4]:
-    st.markdown(f"**Version 2.2** • {datetime.now().strftime('%Y-%m-%d')}")
+    st.markdown(f"**Version 2.3** • {datetime.now().strftime('%Y-%m-%d')}")
 
 # Final caption với link
 st.caption(f"""
-[Finance Research Classifier](https://github.com/YOUR_USERNAME/finance-classifier) v2.2 | 
-Made with ❤️ for academic research
+[Finance Research Classifier](https://github.com/YOUR_USERNAME/finance-classifier) v2.3 | 
+Made with ❤️ for academic research | 
+Data: English (arXiv) + Chinese (CNKI)
 """)
