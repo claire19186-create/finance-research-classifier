@@ -1,4 +1,4 @@
-# COMPLETE BILINGUAL FINANCE RESEARCH HUB - FIXED VERSION
+# COMPLETE BILINGUAL FINANCE RESEARCH HUB - DEPLOY FIXED VERSION
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -10,6 +10,9 @@ import time
 import re
 import os
 import sys
+import tempfile
+import PyPDF2
+import io
 
 # ==================== PAGE CONFIG ====================
 st.set_page_config(
@@ -542,167 +545,44 @@ def enhanced_classify_with_confidence(text, top_k=5):
     
     return results
 
-def enhanced_classification_for_cnki(title, keywords, category_code):
-    """Enhanced classification specifically for CNKI papers"""
-    text = f"{title} {' '.join(keywords)} {category_code}"
-    
-    chinese_keyword_mapping = {
-        "绿色金融": "Green Finance",
-        "绿色债券": "Green Finance",
-        "绿色信贷": "Green Finance",
-        "绿色投资": "Green Finance",
-        "ESG": "Green Finance",
-        "气候金融": "Climate Finance",
-        "碳金融": "Climate Finance",
-        "碳交易": "Climate Finance",
-        "碳市场": "Climate Finance",
-        "碳排放": "Climate Finance",
-        "碳中和": "Climate Finance",
-        "商业银行": "Banking & Financial Institutions",
-        "银行": "Banking & Financial Institutions",
-        "银行业": "Banking & Financial Institutions",
-        "金融科技": "FinTech & Blockchain",
-        "数字货币": "FinTech & Blockchain",
-        "区块链": "FinTech & Blockchain",
-        "风险管理": "Risk Management",
-        "风险": "Risk Management",
-        "信用风险": "Risk Management",
-        "投资组合": "Portfolio Management",
-        "资产配置": "Portfolio Management",
-        "金融工程": "Mathematical Finance",
-        "量化金融": "Mathematical Finance",
-        "金融数学": "Mathematical Finance",
-    }
-    
-    for chinese_keyword, category in chinese_keyword_mapping.items():
-        if chinese_keyword in text:
-            return category
-    
-    categories = calculate_category_scores(text, top_k=1)
-    if categories:
-        return categories[0][0]
-    
-    return "General Finance"
-
-def load_excel_data(file_path):
-    """Load and process Excel data from CNKI export"""
+# ==================== PDF PROCESSOR ====================
+def extract_text_from_pdf(pdf_file):
+    """Extract text from uploaded PDF file"""
     try:
-        # Try different Excel engines
-        try:
-            df = pd.read_excel(file_path, sheet_name=None, engine='openpyxl')
-        except:
-            try:
-                df = pd.read_excel(file_path, sheet_name=None, engine='xlrd')
-            except:
-                st.error("Cannot read Excel file. Please install: pip install openpyxl xlrd")
-                return []
-        
-        all_papers = []
-        
-        for sheet_name, sheet_df in df.items():
-            sheet_df.columns = sheet_df.columns.str.strip()
-            
-            if 'Title-题名' in sheet_df.columns:
-                for idx, row in sheet_df.iterrows():
-                    if pd.isna(row.get('Title-题名')):
-                        continue
-                    
-                    authors_str = str(row.get('Author-作者', ''))
-                    authors = [author.strip() for author in authors_str.split(',') if author.strip()]
-                    
-                    keywords_str = str(row.get('关键词', ''))
-                    keywords = [kw.strip() for kw in keywords_str.split(';;') if kw.strip()]
-                    
-                    paper = {
-                        'title': str(row.get('Title-题名', '')),
-                        'authors': authors,
-                        'source': str(row.get('Source-文献来源', row.get('Source-报纸名', ''))),
-                        'year': int(row.get('Year-年', row.get('Year-学位年度', 2024))) if not pd.isna(row.get('Year-年', row.get('Year-学位年度', pd.NaT))) else 2024,
-                        'keywords': keywords,
-                        'category_code': str(row.get('中图分类号', '')),
-                        'type': 'journal' if 'Source-文献来源' in row else 'newspaper',
-                        'abstract': '',
-                        'arxiv_id': f"CNKI_{sheet_name}_{idx}",
-                        'arxiv_url': '',
-                        'pdf_url': '',
-                        'word_count': len(str(row.get('Title-题名', '')).split()) * 20,
-                        'published': f"{row.get('Year-年', 2024)}-01-01" if pd.notna(row.get('Year-年', pd.NaT)) else '2024-01-01'
-                    }
-                    
-                    paper['category'] = enhanced_classification_for_cnki(
-                        paper['title'],
-                        paper['keywords'],
-                        paper['category_code']
-                    )
-                    
-                    if not paper.get('abstract', '') and paper['keywords']:
-                        paper['abstract'] = f"Research Topic: {', '.join(paper['keywords'][:5])}. Published in {paper['source']} ({paper['year']})."
-                    
-                    all_papers.append(paper)
-            
-            elif '导师' in sheet_df.columns:
-                for idx, row in sheet_df.iterrows():
-                    if pd.isna(row.get('Title-文献题名')):
-                        continue
-                    
-                    keywords_str = str(row.get('关键词', ''))
-                    keywords = [kw.strip() for kw in keywords_str.split(';;') if kw.strip()]
-                    
-                    paper = {
-                        'title': str(row.get('Title-文献题名', '')),
-                        'authors': [str(row.get('Author-作者', '')).strip()],
-                        'source': str(row.get('Source-文献来源', '')),
-                        'year': int(row.get('Year-学位年度', 2024)) if not pd.isna(row.get('Year-学位年度')) else 2024,
-                        'keywords': keywords,
-                        'category_code': str(row.get('中图分类号', '')),
-                        'type': 'thesis',
-                        'abstract': f"学位论文: {row.get('Source-文献来源', '')} - 导师: {row.get('导师', '')}",
-                        'arxiv_id': f"THESIS_{sheet_name}_{idx}",
-                        'arxiv_url': '',
-                        'pdf_url': '',
-                        'word_count': len(str(row.get('Title-文献题名', '')).split()) * 80,
-                        'published': f"{row.get('Year-学位年度', 2024)}-01-01" if pd.notna(row.get('Year-学位年度')) else '2024-01-01',
-                        'advisor': str(row.get('导师', ''))
-                    }
-                    
-                    paper['category'] = enhanced_classification_for_cnki(
-                        paper['title'],
-                        paper['keywords'],
-                        paper['category_code']
-                    )
-                    
-                    all_papers.append(paper)
-        
-        return all_papers
-        
+        pdf_reader = PyPDF2.PdfReader(pdf_file)
+        text = ""
+        for page in pdf_reader.pages:
+            text += page.extract_text()
+        return text
     except Exception as e:
-        st.error(f"Error loading Excel file: {e}")
-        return []
+        st.error(f"Error reading PDF: {e}")
+        return ""
+
+def process_pdf_classification(pdf_file):
+    """Process PDF file for classification"""
+    with st.spinner("📄 Extracting text from PDF..."):
+        text = extract_text_from_pdf(pdf_file)
+        
+        if not text or len(text.strip()) < 50:
+            st.error("Could not extract meaningful text from PDF. The file might be scanned or empty.")
+            return None, None
+        
+        # Extract potential title (first line or first 100 chars)
+        lines = text.split('\n')
+        potential_title = lines[0] if len(lines[0]) > 20 else text[:100]
+        
+        # Extract abstract (first 500 chars)
+        abstract = text[:500] + "..." if len(text) > 500 else text
+        
+        return potential_title, abstract
 
 # ==================== LOAD RESEARCH PAPERS ====================
 @st.cache_data
 def load_research_papers():
-    """Load research papers from both JSON and Excel sources"""
+    """Load research papers from multiple sources"""
     all_papers = []
     
-    # ========== DEBUG: Kiểm tra file trong thư mục ==========
-    st.sidebar.subheader("🔍 File Check")
-    
-    # Tìm file Excel tự động
-    excel_files = [f for f in os.listdir('.') if f.lower().endswith(('.xls', '.xlsx')) and 'cnki' in f.lower()]
-    
-    if excel_files:
-        excel_path = excel_files[0]
-        st.sidebar.success(f"✅ Found Excel: {excel_path}")
-    else:
-        st.sidebar.error("❌ No CNKI Excel file found!")
-        st.sidebar.write("Looking for files with 'cnki' in name:")
-        for f in os.listdir('.'):
-            if f.lower().endswith(('.xls', '.xlsx')):
-                st.sidebar.write(f"  - {f}")
-        return pd.DataFrame(), []
-    
-    # Load từ JSON nếu có
+    # Try to load from JSON (arXiv papers)
     json_path = 'research_papers.json'
     if os.path.exists(json_path):
         try:
@@ -713,18 +593,48 @@ def load_research_papers():
         except Exception as e:
             st.sidebar.warning(f"⚠️ Could not load JSON: {e}")
     
-    # Load từ Excel CNKI
+    # Try to load from Excel if exists (CNKI papers)
     try:
-        excel_papers = load_excel_data(excel_path)
-        if excel_papers:
-            all_papers.extend(excel_papers)
-            st.sidebar.success(f"✅ Loaded {len(excel_papers)} papers from Excel")
+        # Look for Excel files with CNKI in name
+        excel_files = [f for f in os.listdir('.') if f.lower().endswith(('.xls', '.xlsx')) and 'cnki' in f.lower()]
+        
+        if excel_files:
+            excel_path = excel_files[0]
+            st.sidebar.info(f"📊 Found CNKI Excel: {excel_path}")
+            
+            # Simple Excel loader for CNKI
+            try:
+                df = pd.read_excel(excel_path, sheet_name=0)
+                
+                # Map CNKI columns
+                for idx, row in df.iterrows():
+                    if 'Title-题名' in df.columns and pd.notna(row['Title-题名']):
+                        paper = {
+                            'title': str(row['Title-题名']),
+                            'authors': [str(row.get('Author-作者', '')).strip()],
+                            'source': str(row.get('Source-文献来源', 'CNKI Database')),
+                            'year': int(row.get('Year-年', 2024)),
+                            'keywords': [kw.strip() for kw in str(row.get('关键词', '')).split(';') if kw.strip()],
+                            'category': 'General Finance',  # Will be classified later
+                            'type': 'cnki_journal',
+                            'abstract': str(row.get('摘要', '')).strip() or f"CNKI Paper: {str(row['Title-题名'])[:100]}...",
+                            'arxiv_id': f"CNKI_{idx}",
+                            'arxiv_url': '',
+                            'pdf_url': '',
+                            'word_count': len(str(row['Title-题名']).split()) * 50,
+                            'published': f"{int(row.get('Year-年', 2024))}-01-01"
+                        }
+                        all_papers.append(paper)
+                
+                st.sidebar.success(f"✅ Loaded {len([p for p in all_papers if p.get('type') == 'cnki_journal'])} CNKI papers")
+            except Exception as e:
+                st.sidebar.error(f"❌ Error loading CNKI Excel: {e}")
     except Exception as e:
-        st.sidebar.error(f"❌ Error loading Excel: {e}")
+        st.sidebar.warning(f"⚠️ Could not search for Excel files: {e}")
     
-    # Nếu không có papers, tạo dữ liệu mẫu
+    # If no papers loaded, use sample data
     if not all_papers:
-        st.warning("No papers loaded. Using sample data.")
+        st.sidebar.info("ℹ️ Using sample papers")
         all_papers = [
             {
                 'title': 'Sample: Green Finance Development in China',
@@ -734,10 +644,42 @@ def load_research_papers():
                 'keywords': ['green finance', 'sustainable development', 'ESG'],
                 'category': 'Green Finance',
                 'type': 'journal',
-                'abstract': 'A study on green finance development in China.',
+                'abstract': 'A study on green finance development in China with focus on environmental policies.',
                 'arxiv_id': 'SAMPLE_001',
+                'arxiv_url': 'https://arxiv.org/abs/2401.00001',
+                'pdf_url': 'https://arxiv.org/pdf/2401.00001.pdf',
                 'word_count': 5000,
                 'published': '2024-01-15'
+            },
+            {
+                'title': 'Risk Management in Banking Sector',
+                'authors': ['Wang Fang', 'Chen Xia'],
+                'source': 'Journal of Banking',
+                'year': 2023,
+                'keywords': ['risk management', 'banking', 'VaR'],
+                'category': 'Risk Management',
+                'type': 'journal',
+                'abstract': 'Analysis of risk management practices in modern banking institutions.',
+                'arxiv_id': 'SAMPLE_002',
+                'arxiv_url': 'https://arxiv.org/abs/2301.00002',
+                'pdf_url': 'https://arxiv.org/pdf/2301.00002.pdf',
+                'word_count': 4500,
+                'published': '2023-03-20'
+            },
+            {
+                'title': 'Machine Learning for Portfolio Optimization',
+                'authors': ['Smith J.', 'Johnson R.'],
+                'source': 'Quantitative Finance',
+                'year': 2024,
+                'keywords': ['machine learning', 'portfolio optimization', 'deep learning'],
+                'category': 'Computational Finance',
+                'type': 'journal',
+                'abstract': 'Application of deep learning techniques for portfolio optimization problems.',
+                'arxiv_id': 'SAMPLE_003',
+                'arxiv_url': 'https://arxiv.org/abs/2402.00003',
+                'pdf_url': 'https://arxiv.org/pdf/2402.00003.pdf',
+                'word_count': 6000,
+                'published': '2024-02-10'
             }
         ]
     
@@ -777,6 +719,221 @@ def load_research_papers():
 
 papers_df, papers_list = load_research_papers()
 
+# ==================== SIDEBAR ====================
+st.sidebar.markdown("""
+<div style="padding: 20px 0;">
+    <div style="text-align: center; margin-bottom: 32px;">
+        <div style="font-size: 32px; margin-bottom: 8px;">📈</div>
+        <div style="font-size: 18px; font-weight: 600; color: #1e293b;">Finance Research Hub</div>
+        <div style="font-size: 12px; color: #64748b; margin-top: 4px;">v4.0 • Bilingual Edition</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# Navigation
+st.sidebar.header("🧭 Navigation")
+app_mode = st.sidebar.radio(
+    "",
+    ["📚 Research Library", "🤖 Enhanced Classifier", "📄 PDF Processor", "📊 Analytics"],
+    help="Switch between different features",
+    label_visibility="collapsed"
+)
+
+# Quick actions
+st.sidebar.markdown("---")
+st.sidebar.header("⚡ Quick Actions")
+
+if st.sidebar.button("🔄 Refresh Data", use_container_width=True):
+    st.cache_data.clear()
+    st.rerun()
+
+# Upload files in sidebar
+st.sidebar.markdown("---")
+st.sidebar.header("📤 Upload Files")
+
+uploaded_file = st.sidebar.file_uploader("Upload PDF or Excel", type=['pdf', 'xlsx', 'xls'])
+
+# Info section
+st.sidebar.markdown("---")
+st.sidebar.header("ℹ️ System Info")
+
+if not papers_df.empty:
+    latest_paper = papers_df.sort_values('published_date', ascending=False).iloc[0]
+    paper_language = "🇨🇳 Chinese" if str(latest_paper.get('arxiv_id', '')).startswith('CNKI') else "🇺🇸 English"
+    
+    st.sidebar.markdown(f"""
+    <div style="background: #f8fafc; padding: 16px; border-radius: 12px; border-left: 4px solid #667eea;">
+        <div style="font-size: 13px; color: #64748b; margin-bottom: 4px;">Latest Paper</div>
+        <div style="font-size: 14px; font-weight: 500; color: #1e293b; margin-bottom: 8px; line-height: 1.4;">
+            {latest_paper.get('title', 'Untitled')[:50]}...
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 12px; color: #94a3b8;">
+            <span>📅 {latest_paper.get('date_display', 'Unknown')}</span>
+            <span>{paper_language}</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# Database info
+total_categories = len(FINANCE_KEYWORD_DATABASE)
+total_keywords = sum(len(data['keywords']) for data in FINANCE_KEYWORD_DATABASE.values())
+
+st.sidebar.markdown(f"""
+<div style="background: #f8fafc; padding: 16px; border-radius: 12px; margin-top: 16px;">
+    <div style="font-size: 13px; color: #64748b; margin-bottom: 8px;">📊 Database Statistics</div>
+    <div style="font-size: 12px; color: #475569;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span>Finance Categories:</span>
+            <span style="font-weight: 600;">{total_categories}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span>Total Keywords:</span>
+            <span style="font-weight: 600;">{total_keywords}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+            <span>Language Support:</span>
+            <span style="font-weight: 600;">Bilingual</span>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# ==================== PDF PROCESSOR PAGE ====================
+def display_pdf_processor():
+    """Display PDF processor interface"""
+    
+    st.markdown("""
+    <div style="margin-bottom: 32px;">
+        <h2 style="color: #1e293b; font-size: 28px; font-weight: 700; margin-bottom: 8px;">
+            📄 PDF Processor
+        </h2>
+        <p style="color: #64748b; font-size: 16px; margin-bottom: 24px;">
+            Upload and classify finance research papers from PDF files
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.markdown("""
+        <div class="card">
+            <h3 style="color: #1e293b; font-size: 20px; font-weight: 600; margin-bottom: 20px;">
+                📤 Upload PDF File
+            </h3>
+        """, unsafe_allow_html=True)
+        
+        uploaded_pdf = st.file_uploader(
+            "Choose a PDF file",
+            type=['pdf'],
+            key="pdf_uploader_main"
+        )
+        
+        if uploaded_pdf:
+            st.success(f"✅ File uploaded: {uploaded_pdf.name}")
+            
+            # Extract text from PDF
+            with st.spinner("Processing PDF..."):
+                title, abstract = process_pdf_classification(uploaded_pdf)
+                
+                if title and abstract:
+                    st.markdown("#### 📝 Extracted Content")
+                    
+                    with st.expander("View Extracted Text"):
+                        st.text_area("Title/First Line", title, height=80)
+                        st.text_area("Abstract/First 500 chars", abstract, height=200)
+                    
+                    # Classify the extracted text
+                    classification_results = enhanced_classify_with_confidence(f"{title} {abstract}")
+                    
+                    if classification_results:
+                        st.markdown("#### 🤖 Classification Results")
+                        display_classification_results_simple(classification_results)
+                        
+                        # Add to papers list button
+                        if st.button("📥 Add to Research Library", type="primary"):
+                            new_paper = {
+                                'title': title[:200],
+                                'authors': ['Uploaded PDF'],
+                                'source': uploaded_pdf.name,
+                                'year': datetime.now().year,
+                                'keywords': extract_keywords(abstract)[:10],
+                                'category': classification_results[0]['category'],
+                                'type': 'pdf_upload',
+                                'abstract': abstract,
+                                'arxiv_id': f"PDF_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                                'arxiv_url': '',
+                                'pdf_url': '',
+                                'word_count': len(abstract.split()),
+                                'published': datetime.now().strftime('%Y-%m-%d')
+                            }
+                            
+                            # Add to session state
+                            if 'uploaded_papers' not in st.session_state:
+                                st.session_state.uploaded_papers = []
+                            
+                            st.session_state.uploaded_papers.append(new_paper)
+                            st.success(f"✅ Paper added to library! Category: {classification_results[0]['category']}")
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("""
+        <div class="card">
+            <h3 style="color: #1e293b; font-size: 20px; font-weight: 600; margin-bottom: 20px;">
+                ℹ️ How to Use
+            </h3>
+            
+            <div style="margin-bottom: 24px;">
+                <div style="font-size: 14px; color: #64748b; margin-bottom: 12px;">Features:</div>
+                <ul style="font-size: 13px; color: #475569; padding-left: 20px; line-height: 1.6;">
+                    <li>Upload PDF research papers</li>
+                    <li>Automatic text extraction</li>
+                    <li>Bilingual classification</li>
+                    <li>Add to research library</li>
+                    <li>Export classification results</li>
+                </ul>
+            </div>
+            
+            <div style="margin-top: 24px; padding: 16px; background: #f0f9ff; border-radius: 12px;">
+                <div style="font-size: 12px; color: #0369a1; margin-bottom: 8px;">💡 Tip</div>
+                <div style="font-size: 13px; color: #475569;">
+                    Best results with research papers containing clear titles and abstracts in English or Chinese.
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+def display_classification_results_simple(results):
+    """Display simple classification results for PDF processor"""
+    if not results:
+        return
+    
+    top_category = results[0]
+    
+    st.markdown(f"""
+    <div style="background: {top_category['color']}10; padding: 16px; border-radius: 12px; border-left: 4px solid {top_category['color']}; margin: 16px 0;">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+            <div style="font-size: 24px; color: {top_category['color']};">{top_category['icon']}</div>
+            <div style="flex: 1;">
+                <div style="font-size: 18px; font-weight: 600; color: {top_category['color']};">
+                    {top_category['category']}
+                </div>
+                <div style="font-size: 14px; color: #64748b;">
+                    Confidence: {top_category['confidence']:.1f}%
+                </div>
+            </div>
+        </div>
+        
+        <div style="font-size: 13px; color: #64748b; margin-top: 12px;">
+            Matched Keywords ({top_category['total_matches']}):
+            <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px;">
+                {''.join([f'<span style="background: {top_category["color"]}20; color: {top_category["color"]}; padding: 2px 8px; border-radius: 12px; font-size: 11px;">{kw}</span>' for kw in top_category["matched_keywords"][:6]])}
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
 # ==================== RESEARCH LIBRARY ====================
 def display_research_library():
     """Display the research library interface"""
@@ -792,21 +949,28 @@ def display_research_library():
     </div>
     """, unsafe_allow_html=True)
     
-    if not papers_df.empty:
-        cnki_papers = len(papers_df[papers_df['arxiv_id'].str.startswith('CNKI') | papers_df['arxiv_id'].str.startswith('THESIS')])
-        other_papers = len(papers_df) - cnki_papers
+    # Combine loaded papers with uploaded papers
+    all_papers_df = papers_df.copy()
+    if 'uploaded_papers' in st.session_state and st.session_state.uploaded_papers:
+        uploaded_df = pd.DataFrame(st.session_state.uploaded_papers)
+        all_papers_df = pd.concat([all_papers_df, uploaded_df], ignore_index=True)
+    
+    if not all_papers_df.empty:
+        cnki_papers = len(all_papers_df[all_papers_df['arxiv_id'].str.startswith('CNKI', na=False)])
+        pdf_papers = len(all_papers_df[all_papers_df['arxiv_id'].str.startswith('PDF', na=False)])
+        other_papers = len(all_papers_df) - cnki_papers - pdf_papers
         
         stats_cols = st.columns(5)
         with stats_cols[0]:
             st.markdown(f"""
             <div class="metric-card">
-                <div class="metric-value">{len(papers_df)}</div>
+                <div class="metric-value">{len(all_papers_df)}</div>
                 <div class="metric-label">Total Papers</div>
             </div>
             """, unsafe_allow_html=True)
         
         with stats_cols[1]:
-            unique_categories = papers_df['category'].nunique() if 'category' in papers_df.columns else 0
+            unique_categories = all_papers_df['category'].nunique() if 'category' in all_papers_df.columns else 0
             st.markdown(f"""
             <div class="metric-card">
                 <div class="metric-value">{unique_categories}</div>
@@ -815,14 +979,14 @@ def display_research_library():
             """, unsafe_allow_html=True)
         
         with stats_cols[2]:
-            if 'year' in papers_df.columns:
-                recent_year = papers_df['year'].max()
+            if 'year' in all_papers_df.columns:
+                recent_year = all_papers_df['year'].max()
                 st.markdown(f"""
                 <div class="metric-card">
                     <div class="metric-value">{recent_year}</div>
                     <div class="metric-label">Latest Year</div>
                 </div>
-                """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
         
         with stats_cols[3]:
             st.markdown(f"""
@@ -835,8 +999,8 @@ def display_research_library():
         with stats_cols[4]:
             st.markdown(f"""
             <div class="metric-card">
-                <div class="metric-value">{other_papers}</div>
-                <div class="metric-label">Other Papers</div>
+                <div class="metric-value">{pdf_papers}</div>
+                <div class="metric-label">PDF Uploads</div>
             </div>
             """, unsafe_allow_html=True)
     
@@ -857,32 +1021,32 @@ def display_research_library():
             )
         
         with search_cols[1]:
-            if 'category' in papers_df.columns:
-                categories = sorted(papers_df['category'].dropna().unique().tolist())
+            if 'category' in all_papers_df.columns:
+                categories = sorted(all_papers_df['category'].dropna().unique().tolist())
                 selected_category = st.selectbox("Category", ["All Categories"] + categories, key="category_filter")
         
         with search_cols[2]:
-            if 'year' in papers_df.columns:
-                years = sorted(papers_df['year'].dropna().unique().tolist(), reverse=True)
+            if 'year' in all_papers_df.columns:
+                years = sorted(all_papers_df['year'].dropna().unique().tolist(), reverse=True)
                 selected_year = st.selectbox("Year", ["All Years"] + [str(y) for y in years], key="year_filter")
         
         with search_cols[3]:
             paper_type_filter = st.selectbox(
                 "Paper Type", 
-                ["All Types", "Chinese Papers", "Journal", "Newspaper", "Thesis", "Other"],
+                ["All Types", "Chinese (CNKI)", "PDF Upload", "Journal", "Other"],
                 key="type_filter"
             )
         
         st.markdown("</div>", unsafe_allow_html=True)
     
-    filtered_df = papers_df.copy()
+    filtered_df = all_papers_df.copy()
     
-    if not papers_df.empty:
+    if not all_papers_df.empty:
         if search_query:
             mask = (
                 filtered_df['title'].str.contains(search_query, case=False, na=False) |
                 filtered_df['abstract'].str.contains(search_query, case=False, na=False) |
-                filtered_df['authors'].apply(lambda x: search_query.lower() in str(x).lower() if x else False)
+                filtered_df['authors'].apply(lambda x: search_query.lower() in str(x).lower() if isinstance(x, list) else search_query.lower() in str(x).lower())
             )
             filtered_df = filtered_df[mask]
         
@@ -893,12 +1057,12 @@ def display_research_library():
             filtered_df = filtered_df[filtered_df['year'] == int(selected_year)]
         
         if paper_type_filter != "All Types":
-            if paper_type_filter == "Chinese Papers":
-                filtered_df = filtered_df[filtered_df['arxiv_id'].str.startswith(('CNKI', 'THESIS'), na=False)]
-            elif paper_type_filter in ["Journal", "Newspaper", "Thesis"]:
-                filtered_df = filtered_df[filtered_df['type'] == paper_type_filter.lower()]
-            elif paper_type_filter == "Other":
-                filtered_df = filtered_df[~filtered_df['arxiv_id'].str.startswith(('CNKI', 'THESIS'), na=False)]
+            if paper_type_filter == "Chinese (CNKI)":
+                filtered_df = filtered_df[filtered_df['arxiv_id'].str.startswith('CNKI', na=False)]
+            elif paper_type_filter == "PDF Upload":
+                filtered_df = filtered_df[filtered_df['arxiv_id'].str.startswith('PDF', na=False)]
+            elif paper_type_filter == "Journal":
+                filtered_df = filtered_df[filtered_df['type'].str.contains('journal', case=False, na=False)]
         
         filtered_df = filtered_df.sort_values('published_date', ascending=False) if 'published_date' in filtered_df.columns else filtered_df
     
@@ -925,15 +1089,15 @@ def display_research_library():
             paper_type = paper.get('type', 'unknown')
             paper_type_badge = ""
             
-            if paper.get('arxiv_id', '').startswith(('CNKI', 'THESIS')):
+            if paper.get('arxiv_id', '').startswith('CNKI'):
                 paper_type_badge = '<span class="badge badge-secondary" style="background-color: #fee2e2; color: #dc2626;">🇨🇳 Chinese</span>'
+            elif paper.get('arxiv_id', '').startswith('PDF'):
+                paper_type_badge = '<span class="badge badge-secondary" style="background-color: #dbeafe; color: #1e40af;">📄 PDF Upload</span>'
             
-            if paper_type == 'journal':
+            if paper_type == 'journal' or paper_type == 'cnki_journal':
                 paper_type_badge += '<span class="badge badge-secondary">📖 Journal</span>'
-            elif paper_type == 'newspaper':
-                paper_type_badge += '<span class="badge badge-secondary">📰 Newspaper</span>'
-            elif paper_type == 'thesis':
-                paper_type_badge += '<span class="badge badge-secondary">🎓 Thesis</span>'
+            elif paper_type == 'pdf_upload':
+                paper_type_badge += '<span class="badge badge-secondary">📤 Uploaded</span>'
             else:
                 paper_type_badge += '<span class="badge badge-secondary">📄 Paper</span>'
             
@@ -1326,7 +1490,13 @@ def display_enhanced_classifier():
 def display_statistics():
     """Display statistics dashboard"""
     
-    if papers_df.empty:
+    # Combine loaded papers with uploaded papers
+    all_papers_df = papers_df.copy()
+    if 'uploaded_papers' in st.session_state and st.session_state.uploaded_papers:
+        uploaded_df = pd.DataFrame(st.session_state.uploaded_papers)
+        all_papers_df = pd.concat([all_papers_df, uploaded_df], ignore_index=True)
+    
+    if all_papers_df.empty:
         st.warning("No research papers loaded.")
         return
     
@@ -1344,7 +1514,7 @@ def display_statistics():
     col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
-        total_papers = len(papers_df)
+        total_papers = len(all_papers_df)
         st.markdown(f"""
         <div class="metric-card">
             <div class="metric-value" style="color: #667eea;">{total_papers}</div>
@@ -1353,7 +1523,7 @@ def display_statistics():
         """, unsafe_allow_html=True)
     
     with col2:
-        chinese_papers = len(papers_df[papers_df['arxiv_id'].str.startswith(('CNKI', 'THESIS'), na=False)])
+        chinese_papers = len(all_papers_df[all_papers_df['arxiv_id'].str.startswith('CNKI', na=False)])
         st.markdown(f"""
         <div class="metric-card">
             <div class="metric-value" style="color: #ef4444;">{chinese_papers}</div>
@@ -1362,16 +1532,16 @@ def display_statistics():
         """, unsafe_allow_html=True)
     
     with col3:
-        english_papers = total_papers - chinese_papers
+        pdf_papers = len(all_papers_df[all_papers_df['arxiv_id'].str.startswith('PDF', na=False)])
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-value" style="color: #10b981;">{english_papers}</div>
-            <div class="metric-label">English Papers</div>
+            <div class="metric-value" style="color: #10b981;">{pdf_papers}</div>
+            <div class="metric-label">PDF Uploads</div>
         </div>
         """, unsafe_allow_html=True)
     
     with col4:
-        unique_categories = papers_df['category'].nunique() if 'category' in papers_df.columns else 0
+        unique_categories = all_papers_df['category'].nunique() if 'category' in all_papers_df.columns else 0
         st.markdown(f"""
         <div class="metric-card">
             <div class="metric-value" style="color: #8b5cf6;">{unique_categories}</div>
@@ -1380,8 +1550,8 @@ def display_statistics():
         """, unsafe_allow_html=True)
     
     with col5:
-        if 'year' in papers_df.columns:
-            recent_year = papers_df['year'].max()
+        if 'year' in all_papers_df.columns:
+            recent_year = all_papers_df['year'].max()
             st.markdown(f"""
         <div class="metric-card">
             <div class="metric-value" style="color: #f59e0b;">{recent_year}</div>
@@ -1399,8 +1569,8 @@ def display_statistics():
             </h3>
         """, unsafe_allow_html=True)
         
-        if 'category' in papers_df.columns:
-            category_counts = papers_df['category'].value_counts().reset_index()
+        if 'category' in all_papers_df.columns:
+            category_counts = all_papers_df['category'].value_counts().reset_index()
             category_counts.columns = ['Category', 'Count']
             
             colors = []
@@ -1434,8 +1604,8 @@ def display_statistics():
             </h3>
         """, unsafe_allow_html=True)
         
-        if 'year' in papers_df.columns:
-            yearly_counts = papers_df['year'].value_counts().sort_index().reset_index()
+        if 'year' in all_papers_df.columns:
+            yearly_counts = all_papers_df['year'].value_counts().sort_index().reset_index()
             yearly_counts.columns = ['Year', 'Count']
             
             fig = go.Figure()
@@ -1463,95 +1633,15 @@ def display_statistics():
         
         st.markdown("</div>", unsafe_allow_html=True)
 
-# ==================== SIDEBAR ====================
-st.sidebar.markdown("""
-<div style="padding: 20px 0;">
-    <div style="text-align: center; margin-bottom: 32px;">
-        <div style="font-size: 32px; margin-bottom: 8px;">📈</div>
-        <div style="font-size: 18px; font-weight: 600; color: #1e293b;">Finance Research Hub</div>
-        <div style="font-size: 12px; color: #64748b; margin-top: 4px;">v4.0 • Bilingual Edition</div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-# Navigation
-st.sidebar.header("🧭 Navigation")
-app_mode = st.sidebar.radio(
-    "",
-    ["📚 Research Library", "🤖 Enhanced Classifier", "📊 Analytics"],
-    help="Switch between different features",
-    label_visibility="collapsed"
-)
-
-# Quick actions
-st.sidebar.markdown("---")
-st.sidebar.header("⚡ Quick Actions")
-
-if st.sidebar.button("🔄 Refresh Data", use_container_width=True):
-    st.cache_data.clear()
-    st.rerun()
-
-if st.sidebar.button("📥 Export All Papers", use_container_width=True):
-    if not papers_df.empty:
-        csv = papers_df.to_csv(index=False)
-        st.sidebar.download_button(
-            label="Download CSV",
-            data=csv,
-            file_name=f"finance_papers_{datetime.now().strftime('%Y%m%d')}.csv",
-            mime="text/csv"
-        )
-
-# Info section
-st.sidebar.markdown("---")
-st.sidebar.header("ℹ️ System Info")
-
-if not papers_df.empty:
-    latest_paper = papers_df.sort_values('published_date', ascending=False).iloc[0]
-    paper_language = "🇨🇳 Chinese" if str(latest_paper.get('arxiv_id', '')).startswith(('CNKI', 'THESIS')) else "🇺🇸 English"
-    
-    st.sidebar.markdown(f"""
-    <div style="background: #f8fafc; padding: 16px; border-radius: 12px; border-left: 4px solid #667eea;">
-        <div style="font-size: 13px; color: #64748b; margin-bottom: 4px;">Latest Paper</div>
-        <div style="font-size: 14px; font-weight: 500; color: #1e293b; margin-bottom: 8px; line-height: 1.4;">
-            {latest_paper.get('title', 'Untitled')[:50]}...
-        </div>
-        <div style="display: flex; justify-content: space-between; font-size: 12px; color: #94a3b8;">
-            <span>📅 {latest_paper.get('date_display', 'Unknown')}</span>
-            <span>{paper_language}</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-# Database info
-total_categories = len(FINANCE_KEYWORD_DATABASE)
-total_keywords = sum(len(data['keywords']) for data in FINANCE_KEYWORD_DATABASE.values())
-
-st.sidebar.markdown(f"""
-<div style="background: #f8fafc; padding: 16px; border-radius: 12px; margin-top: 16px;">
-    <div style="font-size: 13px; color: #64748b; margin-bottom: 8px;">📊 Database Statistics</div>
-    <div style="font-size: 12px; color: #475569;">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-            <span>Finance Categories:</span>
-            <span style="font-weight: 600;">{total_categories}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-            <span>Total Keywords:</span>
-            <span style="font-weight: 600;">{total_keywords}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between;">
-            <span>Language Support:</span>
-            <span style="font-weight: 600;">Bilingual</span>
-        </div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
 # ==================== MAIN APP ROUTING ====================
 if app_mode == "📚 Research Library":
     display_research_library()
     
 elif app_mode == "🤖 Enhanced Classifier":
     display_enhanced_classifier()
+    
+elif app_mode == "📄 PDF Processor":
+    display_pdf_processor()
     
 elif app_mode == "📊 Analytics":
     display_statistics()
@@ -1563,7 +1653,7 @@ st.markdown("""
         Finance Research Hub • v4.0 • Bilingual Edition • Made with ❤️ for researchers
     </div>
     <div style="font-size: 12px; color: #64748b; margin-bottom: 16px;">
-        Supports English & Chinese papers • {len(FINANCE_KEYWORD_DATABASE)} finance categories
+        Supports English & Chinese papers • {len(FINANCE_KEYWORD_DATABASE)} finance categories • PDF Upload
     </div>
 </div>
 """, unsafe_allow_html=True)
