@@ -1,22 +1,22 @@
-# COMPLETE BILINGUAL FINANCE RESEARCH HUB - FINAL DEPLOY VERSION
 import streamlit as st
 import pandas as pd
+import sys
 import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
 import json
+import io
 from datetime import datetime
 import time
 import re
-import os
-import sys
-import tempfile
-import PyPDF2
-import io
+from collections import Counter
+import requests
+from bs4 import BeautifulSoup
+import jieba
+import jieba.analyse
 
-# ==================== PAGE CONFIG ====================
 st.set_page_config(
-    page_title="Finance Research Hub",
+    page_title="Finance Research Hub - 金融研究平台",
     page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -175,23 +175,33 @@ st.markdown("""
         box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
     }
     
-    /* Selectbox styling */
-    .stSelectbox > div > div > div {
-        border-radius: 12px;
+    /* Language toggle */
+    .language-toggle {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .lang-btn {
+        padding: 8px 16px;
+        border-radius: 8px;
         border: 2px solid #e2e8f0;
+        background: white;
+        color: #64748b;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.2s ease;
     }
     
-    /* Expander styling */
-    .streamlit-expanderHeader {
-        border-radius: 12px;
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        font-weight: 600;
+    .lang-btn.active {
+        background: #667eea;
+        color: white;
+        border-color: #667eea;
     }
     
-    /* Loading spinner */
-    .stSpinner > div {
-        border-top-color: #667eea !important;
+    .lang-btn:hover:not(.active) {
+        background: #f1f5f9;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -200,19 +210,19 @@ st.markdown("""
 st.markdown("""
 <div class="main-header">
     <div style="max-width: 1200px; margin: 0 auto; padding: 0 20px;">
-        <h1 style="margin: 0; font-size: 42px; font-weight: 700; line-height: 1.2;">📈 Finance Research Hub</h1>
+        <h1 style="margin: 0; font-size: 42px; font-weight: 700; line-height: 1.2;">📈 Finance Research Hub - 金融研究平台</h1>
         <p style="margin: 12px 0 0 0; font-size: 18px; opacity: 0.9; font-weight: 400;">
-            Discover, classify, and explore cutting-edge finance research papers
+            Discover, classify, and explore cutting-edge finance research papers | 发现、分类和探索前沿金融研究论文
         </p>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
 # ==================== BILINGUAL KEYWORD DATABASE ====================
+# English-Chinese bilingual keyword database
 FINANCE_KEYWORD_DATABASE = {
     "Computational Finance": {
-        "keywords": [
-            # English
+        "keywords_en": [
             "deep learning", "neural networks", "machine learning", "AI", "artificial intelligence",
             "gradient descent", "backpropagation", "convolutional", "recurrent", "transformer",
             "PDE", "partial differential equation", "numerical methods", "finite difference", "finite element",
@@ -220,13 +230,17 @@ FINANCE_KEYWORD_DATABASE = {
             "algorithm", "optimization", "parallel computing", "GPU", "CUDA",
             "quantum computing", "quantum algorithms", "VQE", "quantum annealing",
             "reinforcement learning", "Q-learning", "deep Q-network", "policy gradient",
-            "time series forecasting", "sequence models", "LSTM", "GRU", "attention",
-            # Chinese
+            "time series forecasting", "sequence models", "LSTM", "GRU", "attention"
+        ],
+        "keywords_zh": [
             "深度学习", "神经网络", "机器学习", "人工智能", "AI",
-            "梯度下降", "反向传播", "卷积", "循环神经网络", "Transformer",
-            "偏微分方程", "数值方法", "有限差分", "有限元", "蒙特卡洛",
-            "模拟", "随机", "高维", "计算金融", "算法",
-            "优化", "并行计算", "量子计算", "强化学习", "时间序列预测"
+            "梯度下降", "反向传播", "卷积", "循环", "变压器",
+            "偏微分方程", "PDE", "数值方法", "有限差分", "有限元",
+            "蒙特卡洛", "模拟", "随机", "高维", "计算",
+            "算法", "优化", "并行计算", "GPU", "CUDA",
+            "量子计算", "量子算法", "量子退火", "变分量子算法",
+            "强化学习", "Q学习", "深度Q网络", "策略梯度",
+            "时间序列预测", "序列模型", "长短期记忆", "门控循环单元", "注意力机制"
         ],
         "weight": 1.0,
         "color": "#667eea",
@@ -234,21 +248,23 @@ FINANCE_KEYWORD_DATABASE = {
     },
     
     "Mathematical Finance": {
-        "keywords": [
-            # English
+        "keywords_en": [
             "stochastic calculus", "Ito", "Stratonovich", "Brownian motion", "martingale",
             "partial differential equation", "PDE", "Black-Scholes", "option pricing", "risk-neutral",
             "measure theory", "probability", "stochastic processes", "Levy processes", "jump diffusion",
             "Malliavin calculus", "Heston model", "SABR", "local volatility", "stochastic volatility",
             "optimal stopping", "optimal control", "Hamilton-Jacobi-Bellman", "dynamic programming",
             "portfolio optimization", "Markowitz", "mean-variance", "efficient frontier",
-            "interest rate models", "Vasicek", "CIR", "HJM", "LIBOR market model",
-            # Chinese
-            "随机微积分", "伊藤", "布朗运动", "鞅", "偏微分方程",
-            "布莱克-斯科尔斯", "期权定价", "风险中性", "测度论", "概率",
-            "随机过程", "Levy过程", "跳跃扩散", "Malliavin微积分", "Heston模型",
-            "局部波动率", "随机波动率", "最优停止", "最优控制", "动态规划",
-            "投资组合优化", "马科维茨", "均值方差", "有效前沿", "利率模型"
+            "interest rate models", "Vasicek", "CIR", "HJM", "LIBOR market model"
+        ],
+        "keywords_zh": [
+            "随机微积分", "伊藤", "斯特拉托诺维奇", "布朗运动", "鞅",
+            "偏微分方程", "布莱克-斯科尔斯", "期权定价", "风险中性",
+            "测度论", "概率", "随机过程", "列维过程", "跳跃扩散",
+            "马利亚万计算", "赫斯顿模型", "SABR模型", "局部波动率", "随机波动率",
+            "最优停止", "最优控制", "哈密顿-雅可比-贝尔曼", "动态规划",
+            "投资组合优化", "马科维茨", "均值-方差", "有效前沿",
+            "利率模型", "瓦西塞克", "CIR模型", "HJM模型", "LIBOR市场模型"
         ],
         "weight": 0.95,
         "color": "#f59e0b",
@@ -256,21 +272,23 @@ FINANCE_KEYWORD_DATABASE = {
     },
     
     "Portfolio Management": {
-        "keywords": [
-            # English
+        "keywords_en": [
             "portfolio optimization", "asset allocation", "diversification", "efficient frontier",
             "mean-variance", "Markowitz", "Black-Litterman", "risk parity", "minimum variance",
             "tactical asset allocation", "strategic asset allocation", "rebalancing", "turnover",
             "tracking error", "active share", "index tracking", "enhanced indexing",
             "factor investing", "smart beta", "risk factors", "style factors",
             "hedge funds", "mutual funds", "ETF", "exchange-traded funds", "fund management",
-            "performance measurement", "Sharpe ratio", "Sortino ratio", "information ratio",
-            # Chinese
-            "投资组合优化", "资产配置", "分散化", "有效前沿", "均值方差",
-            "马科维茨", "风险平价", "最小方差", "战术资产配置", "战略资产配置",
-            "再平衡", "换手率", "跟踪误差", "主动份额", "指数跟踪",
-            "因子投资", "智能贝塔", "风险因子", "风格因子", "对冲基金",
-            "共同基金", "交易所交易基金", "基金管理", "业绩衡量", "夏普比率"
+            "performance measurement", "Sharpe ratio", "Sortino ratio", "information ratio"
+        ],
+        "keywords_zh": [
+            "投资组合优化", "资产配置", "分散化", "有效前沿",
+            "均值-方差", "马科维茨", "布莱克-利特曼", "风险平价", "最小方差",
+            "战术资产配置", "战略资产配置", "再平衡", "换手率",
+            "跟踪误差", "主动份额", "指数跟踪", "增强指数",
+            "因子投资", "智能贝塔", "风险因子", "风格因子",
+            "对冲基金", "共同基金", "交易所交易基金", "基金管理",
+            "绩效衡量", "夏普比率", "索提诺比率", "信息比率"
         ],
         "weight": 0.9,
         "color": "#10b981",
@@ -278,155 +296,31 @@ FINANCE_KEYWORD_DATABASE = {
     },
     
     "Risk Management": {
-        "keywords": [
-            # English
+        "keywords_en": [
             "value at risk", "VaR", "expected shortfall", "ES", "CVaR", "conditional value at risk",
             "stress testing", "scenario analysis", "backtesting", "historical simulation",
             "credit risk", "default risk", "counterparty risk", "credit value adjustment", "CVA",
             "market risk", "volatility risk", "interest rate risk", "currency risk",
             "liquidity risk", "funding liquidity", "market liquidity", "bid-ask spread",
             "operational risk", "model risk", "legal risk", "compliance risk",
-            "systemic risk", "too big to fail", "contagion", "network risk",
-            # Chinese
-            "风险价值", "VaR", "预期损失", "条件风险价值", "压力测试",
-            "情景分析", "回测", "历史模拟", "信用风险", "违约风险",
-            "交易对手风险", "信用价值调整", "市场风险", "波动率风险",
-            "利率风险", "汇率风险", "流动性风险", "资金流动性", "市场流动性",
-            "买卖价差", "操作风险", "模型风险", "法律风险", "合规风险",
-            "系统性风险", "太大而不能倒", "传染效应", "网络风险"
+            "systemic risk", "too big to fail", "contagion", "network risk"
+        ],
+        "keywords_zh": [
+            "风险价值", "VaR", "预期损失", "ES", "条件风险价值", "CVaR",
+            "压力测试", "情景分析", "回测", "历史模拟",
+            "信用风险", "违约风险", "交易对手风险", "信用估值调整", "CVA",
+            "市场风险", "波动率风险", "利率风险", "汇率风险",
+            "流动性风险", "资金流动性", "市场流动性", "买卖价差",
+            "操作风险", "模型风险", "法律风险", "合规风险",
+            "系统性风险", "大而不能倒", "传染风险", "网络风险"
         ],
         "weight": 0.9,
         "color": "#8b5cf6",
         "icon": "⚠️"
     },
     
-    "Green Finance": {
-        "keywords": [
-            # English
-            "green finance", "green bonds", "green loans", "green credit", "sustainable finance",
-            "environmental finance", "eco-finance", "green investment", "ESG investment",
-            "environmental, social and governance", "green banking", "green insurance",
-            "green financial products", "green securities", "green transition finance",
-            "low-carbon finance", "circular economy finance", "biodiversity finance",
-            "natural capital", "green fintech", "sustainability-linked loans",
-            "green mortgage", "energy efficiency finance", "pollution control finance",
-            # Chinese
-            "绿色金融", "绿色债券", "绿色贷款", "绿色信贷", "可持续金融",
-            "环境金融", "生态金融", "绿色投资", "ESG投资", "环境社会治理",
-            "绿色银行", "绿色保险", "绿色金融产品", "绿色证券", "绿色转型金融",
-            "低碳金融", "循环经济金融", "生物多样性金融", "自然资本",
-            "绿色金融科技", "可持续发展挂钩贷款", "绿色抵押贷款",
-            "能效金融", "污染防治金融"
-        ],
-        "weight": 0.85,
-        "color": "#22c55e",
-        "icon": "🌿"
-    },
-    
-    "Climate Finance": {
-        "keywords": [
-            # English
-            "climate finance", "climate change finance", "climate risk finance", "climate adaptation finance",
-            "climate mitigation finance", "carbon pricing", "carbon markets", "emissions trading",
-            "carbon credits", "carbon offsets", "clean development mechanism", "CDM",
-            "climate bonds", "climate funds", "green climate fund", "GCF",
-            "adaptation finance", "mitigation finance", "climate resilient finance",
-            "transition finance", "decarbonization finance", "net-zero finance",
-            "carbon tax", "climate policy", "Paris Agreement finance",
-            # Chinese
-            "气候金融", "气候变化金融", "气候风险金融", "气候适应金融",
-            "气候减缓金融", "碳定价", "碳市场", "碳排放交易",
-            "碳信用", "碳抵消", "清洁发展机制", "气候债券",
-            "气候基金", "绿色气候基金", "适应融资", "减缓融资",
-            "气候韧性金融", "转型金融", "脱碳金融", "净零金融",
-            "碳税", "气候政策", "巴黎协定融资"
-        ],
-        "weight": 0.85,
-        "color": "#0ea5e9",
-        "icon": "🌍"
-    },
-    
-    "Sustainable Finance": {
-        "keywords": [
-            # English
-            "ESG", "environmental social governance", "sustainable investing", "responsible investing",
-            "green bonds", "climate bonds", "sustainability-linked bonds", "social bonds",
-            "sustainable development goals", "SDG finance", "social finance", "impact bonds",
-            "ethical investing", "sustainability reporting", "ESG integration", "ESG metrics",
-            "sustainability performance", "corporate sustainability", "ESG disclosure",
-            # Chinese
-            "ESG", "环境社会治理", "可持续投资", "责任投资", "社会责任投资",
-            "绿色债券", "气候债券", "可持续发展挂钩债券", "社会债券",
-            "可持续发展目标", "SDG融资", "社会金融", "影响力债券",
-            "伦理投资", "可持续发展报告", "ESG整合", "ESG指标",
-            "可持续发展绩效", "企业可持续发展", "ESG信息披露"
-        ],
-        "weight": 0.8,
-        "color": "#10b981",
-        "icon": "🌱"
-    },
-    
-    "FinTech & Blockchain": {
-        "keywords": [
-            # English
-            "blockchain", "distributed ledger", "smart contracts", "Ethereum", "solidity",
-            "cryptocurrency", "Bitcoin", "Ethereum", "DeFi", "decentralized finance",
-            "stablecoins", "CBDC", "central bank digital currency", "digital currency",
-            "tokenization", "NFT", "non-fungible tokens", "security tokens",
-            "crypto exchanges", "crypto wallets", "hot wallet", "cold wallet",
-            # Chinese
-            "区块链", "分布式账本", "智能合约", "以太坊", "加密货币",
-            "比特币", "去中心化金融", "稳定币", "央行数字货币",
-            "数字货币", "代币化", "非同质化代币", "证券型代币",
-            "加密货币交易所", "加密货币钱包", "热钱包", "冷钱包"
-        ],
-        "weight": 0.8,
-        "color": "#6366f1",
-        "icon": "🔗"
-    },
-    
-    "Banking & Financial Institutions": {
-        "keywords": [
-            # English
-            "commercial banks", "investment banks", "central banks", "bank regulation", "Basel",
-            "capital adequacy", "liquidity coverage ratio", "LCR", "net stable funding ratio", "NSFR",
-            "bank lending", "credit creation", "interbank market", "bank runs", "deposit insurance",
-            "shadow banking", "financial intermediation", "bank profitability", "non-performing loans",
-            "financial stability", "systemically important banks", "too big to fail", "bank consolidation",
-            # Chinese
-            "商业银行", "投资银行", "中央银行", "银行监管", "巴塞尔协议",
-            "资本充足率", "流动性覆盖率", "净稳定资金比例", "银行信贷",
-            "信用创造", "银行间市场", "银行挤兑", "存款保险", "影子银行",
-            "金融中介", "银行盈利能力", "不良贷款", "金融稳定",
-            "系统重要性银行", "太大而不能倒", "银行合并"
-        ],
-        "weight": 0.85,
-        "color": "#8b4513",
-        "icon": "🏦"
-    },
-    
-    "Corporate Finance": {
-        "keywords": [
-            # English
-            "capital structure", "Modigliani-Miller", "dividend policy", "payout policy", "share repurchase",
-            "mergers and acquisitions", "M&A", "takeovers", "corporate governance", "board of directors",
-            "agency theory", "principal-agent problem", "executive compensation", "CEO pay",
-            "corporate investment", "capital budgeting", "NPV", "internal rate of return", "IRR",
-            "working capital management", "cash management", "inventory management", "accounts receivable",
-            # Chinese
-            "资本结构", "莫迪利亚尼-米勒", "股利政策", "派息政策", "股票回购",
-            "兼并与收购", "并购", "接管", "公司治理", "董事会",
-            "代理理论", "委托代理问题", "高管薪酬", "首席执行官薪酬",
-            "公司投资", "资本预算", "净现值", "内部收益率",
-            "营运资本管理", "现金管理", "存货管理", "应收账款"
-        ],
-        "weight": 0.8,
-        "color": "#4169e1",
-        "icon": "🏢"
-    },
-    
     "Pricing of Securities": {
-        "keywords": [
+        "keywords_en": [
             "option pricing", "Black-Scholes", "binomial tree", "trinomial tree", "finite difference",
             "Monte Carlo pricing", "least squares Monte Carlo", "LSM", "American options",
             "exotic options", "barrier options", "Asian options", "lookback options", "digital options",
@@ -434,13 +328,21 @@ FINANCE_KEYWORD_DATABASE = {
             "credit derivatives", "CDS", "credit default swaps", "CDO", "collateralized debt obligations",
             "fixed income pricing", "bond pricing", "yield curve", "term structure", "duration"
         ],
+        "keywords_zh": [
+            "期权定价", "布莱克-斯科尔斯", "二叉树", "三叉树", "有限差分",
+            "蒙特卡洛定价", "最小二乘蒙特卡洛", "LSM", "美式期权",
+            "奇异期权", "障碍期权", "亚式期权", "回望期权", "数字期权",
+            "利率衍生品", "互换", "互换期权", "利率上限", "利率下限",
+            "信用衍生品", "信用违约互换", "CDS", "债务抵押债券", "CDO",
+            "固定收益定价", "债券定价", "收益率曲线", "期限结构", "久期"
+        ],
         "weight": 0.85,
         "color": "#ef4444",
         "icon": "💰"
     },
     
     "Financial Econometrics": {
-        "keywords": [
+        "keywords_en": [
             "time series analysis", "ARIMA", "ARMA", "ARCH", "GARCH", "EGARCH", "TGARCH",
             "vector autoregression", "VAR", "cointegration", "error correction model", "ECM",
             "unit root tests", "Dickey-Fuller", "Phillips-Perron", "KPSS",
@@ -448,45 +350,166 @@ FINANCE_KEYWORD_DATABASE = {
             "panel data", "fixed effects", "random effects", "dynamic panel", "GMM",
             "event study", "abnormal returns", "cumulative abnormal returns", "CAR"
         ],
+        "keywords_zh": [
+            "时间序列分析", "ARIMA", "ARMA", "ARCH", "GARCH", "EGARCH", "TGARCH",
+            "向量自回归", "VAR", "协整", "误差修正模型", "ECM",
+            "单位根检验", "迪基-富勒", "菲利普斯-佩龙", "KPSS",
+            "波动率建模", "已实现波动率", "高频数据", "市场微观结构噪声",
+            "面板数据", "固定效应", "随机效应", "动态面板", "广义矩估计",
+            "事件研究", "异常收益", "累积异常收益", "CAR"
+        ],
         "weight": 0.85,
         "color": "#06b6d4",
         "icon": "📈"
     },
     
     "Market Microstructure": {
-        "keywords": [
+        "keywords_en": [
             "limit order book", "market orders", "limit orders", "order flow", "order imbalance",
             "bid-ask spread", "market depth", "liquidity", "illiquidity", "market impact",
             "price impact", "temporary impact", "permanent impact", "Kyle's lambda",
             "high-frequency trading", "algorithmic trading", "market making", "statistical arbitrage",
             "latency", "tick size", "minimum price variation", "decimalization"
         ],
+        "keywords_zh": [
+            "限价订单簿", "市价订单", "限价订单", "订单流", "订单不平衡",
+            "买卖价差", "市场深度", "流动性", "非流动性", "市场冲击",
+            "价格冲击", "暂时冲击", "永久冲击", "凯尔λ",
+            "高频交易", "算法交易", "做市", "统计套利",
+            "延迟", "最小报价单位", "最小价格变动", "十进制报价"
+        ],
         "weight": 0.8,
         "color": "#f97316",
         "icon": "⚡"
+    },
+    
+    "Sustainable Finance": {
+        "keywords_en": [
+            "ESG", "environmental social governance", "sustainable investing", "responsible investing",
+            "green bonds", "climate bonds", "sustainability-linked bonds",
+            "carbon pricing", "carbon credits", "emissions trading", "cap and trade",
+            "climate risk", "physical risk", "transition risk", "TCFD", "climate stress testing",
+            "impact investing", "social impact bonds", "development finance"
+        ],
+        "keywords_zh": [
+            "ESG", "环境社会和治理", "可持续投资", "责任投资",
+            "绿色债券", "气候债券", "可持续发展挂钩债券",
+            "碳定价", "碳信用", "排放交易", "限额与交易",
+            "气候风险", "物理风险", "转型风险", "气候相关财务披露", "气候压力测试",
+            "影响力投资", "社会效益债券", "发展金融"
+        ],
+        "weight": 0.75,
+        "color": "#22c55e",
+        "icon": "🌱"
+    },
+    
+    "FinTech & Blockchain": {
+        "keywords_en": [
+            "blockchain", "distributed ledger", "smart contracts", "Ethereum", "solidity",
+            "cryptocurrency", "Bitcoin", "Ethereum", "DeFi", "decentralized finance",
+            "stablecoins", "CBDC", "central bank digital currency", "digital currency",
+            "tokenization", "NFT", "non-fungible tokens", "security tokens",
+            "crypto exchanges", "crypto wallets", "hot wallet", "cold wallet"
+        ],
+        "keywords_zh": [
+            "区块链", "分布式账本", "智能合约", "以太坊", "Solidity",
+            "加密货币", "比特币", "以太坊", "去中心化金融", "DeFi",
+            "稳定币", "央行数字货币", "CBDC", "数字货币",
+            "通证化", "非同质化代币", "NFT", "证券型代币",
+            "加密货币交易所", "加密货币钱包", "热钱包", "冷钱包"
+        ],
+        "weight": 0.8,
+        "color": "#6366f1",
+        "icon": "🔗"
+    },
+    
+    "Corporate Finance": {
+        "keywords_en": [
+            "capital structure", "dividend policy", "mergers and acquisitions", "M&A", "takeovers",
+            "initial public offering", "IPO", "venture capital", "private equity",
+            "corporate governance", "agency theory", "corporate restructuring", "financial distress",
+            "working capital management", "cash management", "capital budgeting", "investment decisions"
+        ],
+        "keywords_zh": [
+            "资本结构", "股利政策", "并购", "兼并收购", "接管",
+            "首次公开发行", "IPO", "风险投资", "私募股权",
+            "公司治理", "代理理论", "公司重组", "财务困境",
+            "营运资本管理", "现金管理", "资本预算", "投资决策"
+        ],
+        "weight": 0.8,
+        "color": "#ec4899",
+        "icon": "🏢"
+    },
+    
+    "Behavioral Finance": {
+        "keywords_en": [
+            "investor psychology", "market anomalies", "momentum", "value effect", "growth effect",
+            "overconfidence", "herding behavior", "loss aversion", "prospect theory",
+            "behavioral biases", "cognitive biases", "emotional biases", "disposition effect",
+            "market sentiment", "investor sentiment", "noise trading", "irrational exuberance"
+        ],
+        "keywords_zh": [
+            "投资者心理", "市场异象", "动量效应", "价值效应", "成长效应",
+            "过度自信", "羊群行为", "损失厌恶", "前景理论",
+            "行为偏差", "认知偏差", "情绪偏差", "处置效应",
+            "市场情绪", "投资者情绪", "噪声交易", "非理性繁荣"
+        ],
+        "weight": 0.75,
+        "color": "#14b8a6",
+        "icon": "🧠"
     }
 }
 
+# Initialize jieba for Chinese text processing
+try:
+    jieba.initialize()
+except:
+    pass
+
 # ==================== UTILITY FUNCTIONS ====================
-def extract_keywords(text):
-    """Extract meaningful keywords from text"""
+def detect_language(text):
+    """Detect if text is Chinese or English"""
+    if not text:
+        return "en"
+    
+    # Check for Chinese characters
+    zh_char_count = sum(1 for char in text if '\u4e00' <= char <= '\u9fff')
+    total_chars = len(text.replace(" ", ""))
+    
+    if total_chars > 0 and zh_char_count / total_chars > 0.3:
+        return "zh"
+    else:
+        return "en"
+
+def extract_keywords_chinese(text):
+    """Extract keywords from Chinese text using jieba"""
+    if not text:
+        return []
+    
+    # Use jieba for keyword extraction
+    keywords = jieba.analyse.extract_tags(text, topK=50, withWeight=False)
+    return keywords
+
+def extract_keywords_english(text):
+    """Extract keywords from English text"""
     if not text:
         return []
     
     text = text.lower()
-    text = re.sub(r'[^\w\s\u4e00-\u9fff\-\.]', ' ', text)
+    text = re.sub(r'[^\w\s\-\.]', ' ', text)
     words = text.split()
     
     stopwords = {'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'a', 'an'}
-    keywords = [word for word in words if len(word) > 1 and word not in stopwords]
+    keywords = [word for word in words if len(word) > 2 and word not in stopwords]
     
     return keywords
 
-def calculate_category_scores(text, top_k=5):
-    """Calculate classification scores based on keyword matching"""
+def calculate_category_scores_bilingual(text, top_k=5):
+    """Calculate classification scores for both Chinese and English text"""
     if not text:
         return []
     
+    language = detect_language(text)
     text_lower = text.lower()
     scores = {}
     
@@ -494,29 +517,52 @@ def calculate_category_scores(text, top_k=5):
         score = 0
         matched_keywords = []
         
-        for keyword in data['keywords']:
-            if keyword.lower() in text_lower:
-                score += 1
-                matched_keywords.append(keyword)
+        # Check both English and Chinese keywords
+        if language == "zh":
+            # Chinese keywords
+            for keyword in data['keywords_zh']:
+                if keyword in text:
+                    score += 1
+                    matched_keywords.append(f"{keyword} (中)")
+            
+            # Also check English keywords for bilingual papers
+            for keyword in data['keywords_en']:
+                if keyword.lower() in text_lower:
+                    score += 0.5  # Lower weight for English keywords in Chinese text
+                    matched_keywords.append(f"{keyword} (英)")
         
+        else:  # English
+            for keyword in data['keywords_en']:
+                if keyword.lower() in text_lower:
+                    score += 1
+                    matched_keywords.append(keyword)
+            
+            # Also check Chinese keywords for bilingual papers
+            for keyword in data['keywords_zh']:
+                if keyword in text:
+                    score += 0.5  # Lower weight for Chinese keywords in English text
+                    matched_keywords.append(f"{keyword} (中)")
+        
+        # Apply category weight
         weighted_score = score * data['weight']
         
         if weighted_score > 0:
             scores[category] = {
                 'score': weighted_score,
-                'confidence': min(100, weighted_score * 8),
+                'confidence': min(100, weighted_score * 8),  # Adjusted scaling
                 'matched_keywords': matched_keywords[:10],
                 'total_matches': len(matched_keywords),
                 'icon': data['icon'],
-                'color': data['color']
+                'color': data['color'],
+                'language': language
             }
     
     sorted_categories = sorted(scores.items(), key=lambda x: x[1]['score'], reverse=True)
     return sorted_categories[:top_k]
 
-def enhanced_classify_with_confidence(text, top_k=5):
-    """Enhanced classification function with keyword-based scoring"""
-    category_scores = calculate_category_scores(text, top_k)
+def enhanced_classify_with_confidence_bilingual(text, top_k=5):
+    """Enhanced bilingual classification function"""
+    category_scores = calculate_category_scores_bilingual(text, top_k)
     
     results = []
     for category, data in category_scores:
@@ -527,446 +573,128 @@ def enhanced_classify_with_confidence(text, top_k=5):
             "icon": data['icon'],
             "color": data['color'],
             "matched_keywords": data['matched_keywords'],
-            "total_matches": data['total_matches']
+            "total_matches": data['total_matches'],
+            "language": data['language']
         })
     
     if not results:
-        default_categories = ["General Finance", "Banking & Financial Institutions", "Green Finance"]
+        default_categories = ["Computational Finance", "Mathematical Finance", "Financial Econometrics"]
         for category in default_categories[:top_k]:
             results.append({
                 "category": category,
-                "confidence": 20.0,
-                "score": 2.0,
-                "icon": FINANCE_KEYWORD_DATABASE.get(category, {}).get('icon', '📄'),
-                "color": FINANCE_KEYWORD_DATABASE.get(category, {}).get('color', '#764ba2'),
+                "confidence": 25.0,
+                "score": 3.0,
+                "icon": FINANCE_KEYWORD_DATABASE[category]['icon'],
+                "color": FINANCE_KEYWORD_DATABASE[category]['color'],
                 "matched_keywords": [],
-                "total_matches": 0
+                "total_matches": 0,
+                "language": "en"
             })
     
     return results
 
-# ==================== PDF PROCESSOR ====================
-def extract_text_from_pdf(pdf_file):
-    """Extract text from uploaded PDF file"""
-    try:
-        pdf_reader = PyPDF2.PdfReader(pdf_file)
-        text = ""
-        for page in pdf_reader.pages:
-            text += page.extract_text()
-        return text
-    except Exception as e:
-        st.error(f"Error reading PDF: {e}")
-        return ""
-
-def process_pdf_classification(pdf_file):
-    """Process PDF file for classification"""
-    with st.spinner("📄 Extracting text from PDF..."):
-        text = extract_text_from_pdf(pdf_file)
-        
-        if not text or len(text.strip()) < 50:
-            st.error("Could not extract meaningful text from PDF. The file might be scanned or empty.")
-            return None, None
-        
-        # Extract potential title (first line or first 100 chars)
-        lines = text.split('\n')
-        potential_title = lines[0] if len(lines[0]) > 20 else text[:100]
-        
-        # Extract abstract (first 500 chars)
-        abstract = text[:500] + "..." if len(text) > 500 else text
-        
-        return potential_title, abstract
-
-# ==================== INITIALIZE SESSION STATE ====================
-if 'uploaded_papers' not in st.session_state:
-    st.session_state.uploaded_papers = []
+# ==================== CNKI SCRAPER ====================
+def search_cnki_papers(keyword, max_results=10):
+    """Search for papers on CNKI (simulated - would need actual API access)"""
+    # This is a mock function - in reality, you would need CNKI API access
+    # or use web scraping with proper authorization
+    
+    mock_cnki_papers = [
+        {
+            "title": "基于深度学习的股票价格预测模型研究",
+            "authors": ["张三", "李四", "王五"],
+            "abstract": "本文提出了一种基于深度学习的股票价格预测模型，结合LSTM和注意力机制，提高了预测精度。",
+            "year": 2024,
+            "source": "CNKI",
+            "keywords": ["深度学习", "股票价格预测", "LSTM", "注意力机制"],
+            "language": "zh"
+        },
+        {
+            "title": "ESG投资对中国上市公司绩效的影响研究",
+            "authors": ["赵六", "钱七"],
+            "abstract": "本文研究了ESG投资对中国上市公司财务绩效和市场价值的影响，发现ESG表现良好的公司具有更好的长期绩效。",
+            "year": 2023,
+            "source": "CNKI",
+            "keywords": ["ESG投资", "上市公司", "财务绩效", "市场价值"],
+            "language": "zh"
+        },
+        {
+            "title": "区块链技术在供应链金融中的应用研究",
+            "authors": ["孙八", "周九"],
+            "abstract": "本文探讨了区块链技术在供应链金融中的应用，分析了其对风险控制和效率提升的作用。",
+            "year": 2024,
+            "source": "CNKI",
+            "keywords": ["区块链", "供应链金融", "风险管理", "效率提升"],
+            "language": "zh"
+        },
+        {
+            "title": "中国股市波动率的预测模型比较研究",
+            "authors": ["吴十", "郑十一"],
+            "abstract": "本文比较了GARCH、EGARCH和TGARCH模型在中国股市波动率预测中的表现，发现EGARCH模型具有最佳预测效果。",
+            "year": 2023,
+            "source": "CNKI",
+            "keywords": ["波动率预测", "GARCH", "EGARCH", "中国股市"],
+            "language": "zh"
+        },
+        {
+            "title": "绿色债券定价的影响因素研究",
+            "authors": ["王十二", "李十三"],
+            "abstract": "本文分析了影响中国绿色债券定价的主要因素，包括信用评级、发行人特征和环境效益等。",
+            "year": 2024,
+            "source": "CNKI",
+            "keywords": ["绿色债券", "债券定价", "信用评级", "环境效益"],
+            "language": "zh"
+        }
+    ]
+    
+    # Filter by keyword (simulated)
+    if keyword:
+        filtered_papers = [
+            paper for paper in mock_cnki_papers 
+            if keyword in paper['title'] or keyword in ' '.join(paper['keywords'])
+        ]
+    else:
+        filtered_papers = mock_cnki_papers
+    
+    return filtered_papers[:max_results]
 
 # ==================== LOAD RESEARCH PAPERS ====================
 @st.cache_data
 def load_research_papers():
-    """Load research papers from multiple sources"""
-    all_papers = []
-    
-    # Try to load from JSON (arXiv papers)
-    json_path = 'research_papers.json'
-    if os.path.exists(json_path):
-        try:
-            with open(json_path, 'r', encoding='utf-8') as f:
-                json_papers = json.load(f)
-                all_papers.extend(json_papers)
-        except Exception as e:
-            st.sidebar.warning(f"⚠️ Could not load JSON: {e}")
-    
-    # Try to load from Excel if exists (CNKI papers)
     try:
-        # Look for Excel files with CNKI in name
-        excel_files = [f for f in os.listdir('.') if f.lower().endswith(('.xls', '.xlsx')) and 'cnki' in f.lower()]
+        with open('research_papers.json', 'r', encoding='utf-8') as f:
+            papers = json.load(f)
         
-        if excel_files:
-            excel_path = excel_files[0]
-            
-            # Simple Excel loader for CNKI
-            try:
-                df = pd.read_excel(excel_path, sheet_name=0)
-                
-                # Map CNKI columns
-                for idx, row in df.iterrows():
-                    if 'Title-题名' in df.columns and pd.notna(row['Title-题名']):
-                        paper = {
-                            'title': str(row['Title-题名']),
-                            'authors': [str(row.get('Author-作者', '')).strip()],
-                            'source': str(row.get('Source-文献来源', 'CNKI Database')),
-                            'year': int(row.get('Year-年', 2024)),
-                            'keywords': [kw.strip() for kw in str(row.get('关键词', '')).split(';') if kw.strip()],
-                            'category': 'General Finance',  # Will be classified later
-                            'type': 'cnki_journal',
-                            'abstract': str(row.get('摘要', '')).strip() or f"CNKI Paper: {str(row['Title-题名'])[:100]}...",
-                            'arxiv_id': f"CNKI_{idx}",
-                            'arxiv_url': '',
-                            'pdf_url': '',
-                            'word_count': len(str(row['Title-题名']).split()) * 50,
-                            'published': f"{int(row.get('Year-年', 2024))}-01-01"
-                        }
-                        all_papers.append(paper)
-            except Exception as e:
-                st.sidebar.error(f"❌ Error loading CNKI Excel: {e}")
-    except Exception:
-        pass
-    
-    # If no papers loaded, use sample data
-    if not all_papers:
-        all_papers = [
-            {
-                'title': 'Sample: Green Finance Development in China',
-                'authors': ['Zhang Wei', 'Li Ming'],
-                'source': 'Finance Research',
-                'year': 2024,
-                'keywords': ['green finance', 'sustainable development', 'ESG'],
-                'category': 'Green Finance',
-                'type': 'journal',
-                'abstract': 'A study on green finance development in China with focus on environmental policies.',
-                'arxiv_id': 'SAMPLE_001',
-                'arxiv_url': 'https://arxiv.org/abs/2401.00001',
-                'pdf_url': 'https://arxiv.org/pdf/2401.00001.pdf',
-                'word_count': 5000,
-                'published': '2024-01-15'
-            },
-            {
-                'title': 'Risk Management in Banking Sector',
-                'authors': ['Wang Fang', 'Chen Xia'],
-                'source': 'Journal of Banking',
-                'year': 2023,
-                'keywords': ['risk management', 'banking', 'VaR'],
-                'category': 'Risk Management',
-                'type': 'journal',
-                'abstract': 'Analysis of risk management practices in modern banking institutions.',
-                'arxiv_id': 'SAMPLE_002',
-                'arxiv_url': 'https://arxiv.org/abs/2301.00002',
-                'pdf_url': 'https://arxiv.org/pdf/2301.00002.pdf',
-                'word_count': 4500,
-                'published': '2023-03-20'
-            },
-            {
-                'title': 'Machine Learning for Portfolio Optimization',
-                'authors': ['Smith J.', 'Johnson R.'],
-                'source': 'Quantitative Finance',
-                'year': 2024,
-                'keywords': ['machine learning', 'portfolio optimization', 'deep learning'],
-                'category': 'Computational Finance',
-                'type': 'journal',
-                'abstract': 'Application of deep learning techniques for portfolio optimization problems.',
-                'arxiv_id': 'SAMPLE_003',
-                'arxiv_url': 'https://arxiv.org/abs/2402.00003',
-                'pdf_url': 'https://arxiv.org/pdf/2402.00003.pdf',
-                'word_count': 6000,
-                'published': '2024-02-10'
-            }
-        ]
-    
-    # Convert to DataFrame
-    papers_df = pd.DataFrame(all_papers)
-    
-    # Process dates
-    if 'published' in papers_df.columns:
-        papers_df['published_date'] = pd.to_datetime(papers_df['published'], errors='coerce')
-        papers_df['date_display'] = papers_df['published_date'].dt.strftime('%b %d, %Y')
-    
-    if 'year' not in papers_df.columns and 'published_date' in papers_df.columns:
-        papers_df['year'] = papers_df['published_date'].dt.year.fillna(2024)
-    
-    # Add colors for categories
-    category_colors = {
-        'Computational Finance': '#667eea',
-        'Mathematical Finance': '#f59e0b',
-        'Portfolio Management': '#10b981',
-        'Risk Management': '#8b5cf6',
-        'Green Finance': '#22c55e',
-        'Climate Finance': '#0ea5e9',
-        'Sustainable Finance': '#10b981',
-        'FinTech & Blockchain': '#6366f1',
-        'Banking & Financial Institutions': '#8b4513',
-        'Corporate Finance': '#4169e1',
-        'General Finance': '#764ba2',
-        'Unknown': '#94a3b8',
-        'Pricing of Securities': '#ef4444',
-        'Financial Econometrics': '#06b6d4',
-        'Market Microstructure': '#f97316'
-    }
-    
-    papers_df['category_color'] = papers_df['category'].map(category_colors).fillna('#94a3b8')
-    
-    return papers_df, all_papers
+        papers_df = pd.DataFrame(papers)
+        
+        if 'published' in papers_df.columns:
+            papers_df['published_date'] = pd.to_datetime(papers_df['published'])
+            papers_df['date_display'] = papers_df['published_date'].dt.strftime('%b %d, %Y')
+        
+        # Add language detection
+        def detect_paper_language(row):
+            title = str(row.get('title', ''))
+            abstract = str(row.get('abstract', ''))
+            return detect_language(title + ' ' + abstract)
+        
+        papers_df['language'] = papers_df.apply(detect_paper_language, axis=1)
+        
+        category_colors = {
+            'Computational Finance': '#667eea',
+            'General Finance': '#764ba2',
+            'Mathematical Finance': '#f59e0b',
+            'Portfolio Management': '#10b981',
+            'Pricing of Securities': '#ef4444',
+            'Risk Management': '#8b5cf6'
+        }
+        papers_df['category_color'] = papers_df['category'].map(category_colors)
+        
+        return papers_df, papers
+    except Exception as e:
+        st.error(f"Error loading research papers: {e}")
+        return pd.DataFrame(), []
 
 papers_df, papers_list = load_research_papers()
-
-# ==================== SIDEBAR ====================
-st.sidebar.markdown("""
-<div style="padding: 20px 0;">
-    <div style="text-align: center; margin-bottom: 32px;">
-        <div style="font-size: 32px; margin-bottom: 8px;">📈</div>
-        <div style="font-size: 18px; font-weight: 600; color: #1e293b;">Finance Research Hub</div>
-        <div style="font-size: 12px; color: #64748b; margin-top: 4px;">v4.0 • Bilingual Edition</div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-# Navigation - FIXED: Có đủ 4 tabs
-st.sidebar.header("🧭 Navigation")
-app_mode = st.sidebar.radio(
-    "",
-    ["📚 Research Library", "🤖 Enhanced Classifier", "📄 PDF Processor", "📊 Analytics"],
-    help="Switch between different features",
-    label_visibility="collapsed"
-)
-
-# Quick actions
-st.sidebar.markdown("---")
-st.sidebar.header("⚡ Quick Actions")
-
-if st.sidebar.button("🔄 Refresh Data", use_container_width=True):
-    st.cache_data.clear()
-    st.rerun()
-
-# Upload files in sidebar
-st.sidebar.markdown("---")
-st.sidebar.header("📤 Upload Files")
-
-uploaded_file = st.sidebar.file_uploader("Upload PDF or Excel", type=['pdf', 'xlsx', 'xls'], key="sidebar_uploader")
-
-# Info section
-st.sidebar.markdown("---")
-st.sidebar.header("ℹ️ System Info")
-
-# Combine loaded papers with uploaded papers for stats
-all_papers_combined = papers_df.copy()
-if st.session_state.uploaded_papers:
-    uploaded_df = pd.DataFrame(st.session_state.uploaded_papers)
-    all_papers_combined = pd.concat([all_papers_combined, uploaded_df], ignore_index=True)
-
-if not all_papers_combined.empty:
-    latest_paper = all_papers_combined.sort_values('published_date', ascending=False).iloc[0]
-    paper_language = "🇨🇳 Chinese" if str(latest_paper.get('arxiv_id', '')).startswith('CNKI') else "🇺🇸 English"
-    
-    st.sidebar.markdown(f"""
-    <div style="background: #f8fafc; padding: 16px; border-radius: 12px; border-left: 4px solid #667eea;">
-        <div style="font-size: 13px; color: #64748b; margin-bottom: 4px;">Latest Paper</div>
-        <div style="font-size: 14px; font-weight: 500; color: #1e293b; margin-bottom: 8px; line-height: 1.4;">
-            {latest_paper.get('title', 'Untitled')[:50]}...
-        </div>
-        <div style="display: flex; justify-content: space-between; font-size: 12px; color: #94a3b8;">
-            <span>📅 {latest_paper.get('date_display', 'Unknown')}</span>
-            <span>{paper_language}</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-# Database info
-total_categories = len(FINANCE_KEYWORD_DATABASE)
-total_keywords = sum(len(data['keywords']) for data in FINANCE_KEYWORD_DATABASE.values())
-
-st.sidebar.markdown(f"""
-<div style="background: #f8fafc; padding: 16px; border-radius: 12px; margin-top: 16px;">
-    <div style="font-size: 13px; color: #64748b; margin-bottom: 8px;">📊 Database Statistics</div>
-    <div style="font-size: 12px; color: #475569;">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-            <span>Finance Categories:</span>
-            <span style="font-weight: 600;">{total_categories}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-            <span>Total Keywords:</span>
-            <span style="font-weight: 600;">{total_keywords}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between;">
-            <span>Language Support:</span>
-            <span style="font-weight: 600;">Bilingual</span>
-        </div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-# ==================== PDF PROCESSOR PAGE ====================
-def display_pdf_processor():
-    """Display PDF processor interface"""
-    
-    st.markdown("""
-    <div style="margin-bottom: 32px;">
-        <h2 style="color: #1e293b; font-size: 28px; font-weight: 700; margin-bottom: 8px;">
-            📄 PDF Processor
-        </h2>
-        <p style="color: #64748b; font-size: 16px; margin-bottom: 24px;">
-            Upload and classify finance research papers from PDF files
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
-        st.markdown("""
-        <div class="card">
-            <h3 style="color: #1e293b; font-size: 20px; font-weight: 600; margin-bottom: 20px;">
-                📤 Upload PDF File
-            </h3>
-        """, unsafe_allow_html=True)
-        
-        uploaded_pdf = st.file_uploader(
-            "Choose a PDF file",
-            type=['pdf'],
-            key="pdf_uploader_main"
-        )
-        
-        if uploaded_pdf is not None:
-            st.success(f"✅ File uploaded: {uploaded_pdf.name}")
-            
-            # Extract text from PDF
-            title, abstract = process_pdf_classification(uploaded_pdf)
-            
-            if title and abstract:
-                st.markdown("#### 📝 Extracted Content")
-                
-                with st.expander("View Extracted Text"):
-                    st.text_area("Title/First Line", title, height=80, key="extracted_title")
-                    st.text_area("Abstract/First 500 chars", abstract, height=200, key="extracted_abstract")
-                
-                # Classify the extracted text
-                classification_results = enhanced_classify_with_confidence(f"{title} {abstract}")
-                
-                if classification_results:
-                    st.markdown("#### 🤖 Classification Results")
-                    
-                    # Display classification results
-                    top_category = classification_results[0]
-                    
-                    st.markdown(f"""
-                    <div style="background: {top_category['color']}10; padding: 20px; border-radius: 12px; border-left: 4px solid {top_category['color']}; margin: 16px 0;">
-                        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px;">
-                            <div style="font-size: 32px; color: {top_category['color']};">{top_category['icon']}</div>
-                            <div style="flex: 1;">
-                                <div style="font-size: 20px; font-weight: 700; color: {top_category['color']};">
-                                    {top_category['category']}
-                                </div>
-                                <div style="font-size: 16px; color: #64748b;">
-                                    Confidence: {top_category['confidence']:.1f}%
-                                </div>
-                            </div>
-                            <div style="font-size: 32px; font-weight: 700; color: {top_category['color']};">
-                                {top_category['confidence']:.1f}%
-                            </div>
-                        </div>
-                        
-                        <div style="font-size: 14px; color: #64748b; margin-top: 16px;">
-                            Matched Keywords ({top_category['total_matches']} found):
-                            <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;">
-                                {''.join([f'<span style="background: {top_category["color"]}30; color: {top_category["color"]}; padding: 4px 10px; border-radius: 16px; font-size: 12px; font-weight: 500;">{kw}</span>' for kw in top_category["matched_keywords"][:8]])}
-                            </div>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    # Add to papers list button
-                    col_btn1, col_btn2 = st.columns(2)
-                    with col_btn1:
-                        if st.button("📥 Add to Research Library", type="primary", use_container_width=True):
-                            new_paper = {
-                                'title': title[:200],
-                                'authors': ['Uploaded PDF'],
-                                'source': uploaded_pdf.name,
-                                'year': datetime.now().year,
-                                'keywords': extract_keywords(abstract)[:10],
-                                'category': classification_results[0]['category'],
-                                'type': 'pdf_upload',
-                                'abstract': abstract,
-                                'arxiv_id': f"PDF_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-                                'arxiv_url': '',
-                                'pdf_url': '',
-                                'word_count': len(abstract.split()),
-                                'published': datetime.now().strftime('%Y-%m-%d'),
-                                'published_date': datetime.now(),
-                                'date_display': datetime.now().strftime('%b %d, %Y'),
-                                'category_color': FINANCE_KEYWORD_DATABASE.get(classification_results[0]['category'], {}).get('color', '#94a3b8')
-                            }
-                            
-                            st.session_state.uploaded_papers.append(new_paper)
-                            st.success(f"✅ Paper added to library! Category: {classification_results[0]['category']}")
-                            st.rerun()
-                    
-                    with col_btn2:
-                        # Export classification results
-                        export_data = {
-                            "filename": uploaded_pdf.name,
-                            "title": title[:200],
-                            "abstract": abstract[:500],
-                            "timestamp": datetime.now().isoformat(),
-                            "classification": classification_results[0]
-                        }
-                        
-                        st.download_button(
-                            label="📁 Export Results",
-                            data=json.dumps(export_data, indent=2, ensure_ascii=False),
-                            file_name=f"pdf_classification_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-                            mime="application/json",
-                            use_container_width=True
-                        )
-        
-        st.markdown("</div>", unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("""
-        <div class="card">
-            <h3 style="color: #1e293b; font-size: 20px; font-weight: 600; margin-bottom: 20px;">
-                ℹ️ How to Use
-            </h3>
-            
-            <div style="margin-bottom: 24px;">
-                <div style="font-size: 14px; color: #64748b; margin-bottom: 12px;">Features:</div>
-                <ul style="font-size: 13px; color: #475569; padding-left: 20px; line-height: 1.6;">
-                    <li>Upload PDF research papers</li>
-                    <li>Automatic text extraction</li>
-                    <li>Bilingual classification</li>
-                    <li>Add to research library</li>
-                    <li>Export classification results</li>
-                </ul>
-            </div>
-            
-            <div style="margin-bottom: 24px;">
-                <div style="font-size: 14px; color: #64748b; margin-bottom: 12px;">Uploaded Papers:</div>
-                <div style="background: #f8fafc; padding: 16px; border-radius: 12px;">
-                    <div style="text-align: center; font-size: 24px; font-weight: 700; color: #667eea; margin-bottom: 8px;">
-                        {len(st.session_state.uploaded_papers)}
-                    </div>
-                    <div style="text-align: center; font-size: 12px; color: #64748b;">
-                        PDF papers in library
-                    </div>
-                </div>
-            </div>
-            
-            <div style="margin-top: 24px; padding: 16px; background: #f0f9ff; border-radius: 12px;">
-                <div style="font-size: 12px; color: #0369a1; margin-bottom: 8px;">💡 Tip</div>
-                <div style="font-size: 13px; color: #475569;">
-                    Best results with research papers containing clear titles and abstracts in English or Chinese.
-                </div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
 
 # ==================== RESEARCH LIBRARY ====================
 def display_research_library():
@@ -975,282 +703,167 @@ def display_research_library():
     st.markdown("""
     <div style="margin-bottom: 32px;">
         <h2 style="color: #1e293b; font-size: 28px; font-weight: 700; margin-bottom: 8px;">
-            📚 Research Library
+            📚 Research Library | 研究文献库
         </h2>
         <p style="color: #64748b; font-size: 16px; margin-bottom: 24px;">
-            Browse and explore finance research papers from arXiv and CNKI
+            Browse finance research papers from arXiv and CNKI | 浏览arXiv和知网的金融研究论文
         </p>
     </div>
     """, unsafe_allow_html=True)
     
-    # Combine loaded papers with uploaded papers
-    all_papers_df = papers_df.copy()
-    if st.session_state.uploaded_papers:
-        uploaded_df = pd.DataFrame(st.session_state.uploaded_papers)
-        all_papers_df = pd.concat([all_papers_df, uploaded_df], ignore_index=True)
+    # Language toggle
+    st.markdown("""
+    <div class="language-toggle">
+        <button class="lang-btn active" onclick="setLanguage('all')">🌍 All Languages</button>
+        <button class="lang-btn" onclick="setLanguage('en')">🇬🇧 English</button>
+        <button class="lang-btn" onclick="setLanguage('zh')">🇨🇳 中文</button>
+    </div>
+    """, unsafe_allow_html=True)
     
-    if not all_papers_df.empty:
-        cnki_papers = len(all_papers_df[all_papers_df['arxiv_id'].str.startswith('CNKI', na=False)])
-        pdf_papers = len(all_papers_df[all_papers_df['arxiv_id'].str.startswith('PDF', na=False)])
-        other_papers = len(all_papers_df) - cnki_papers - pdf_papers
-        
-        stats_cols = st.columns(5)
+    # Statistics
+    if not papers_df.empty:
+        stats_cols = st.columns(4)
         with stats_cols[0]:
             st.markdown(f"""
             <div class="metric-card">
-                <div class="metric-value">{len(all_papers_df)}</div>
+                <div class="metric-value">{len(papers_df)}</div>
                 <div class="metric-label">Total Papers</div>
             </div>
             """, unsafe_allow_html=True)
         
         with stats_cols[1]:
-            unique_categories = all_papers_df['category'].nunique() if 'category' in all_papers_df.columns else 0
+            english_papers = len(papers_df[papers_df['language'] == 'en'])
             st.markdown(f"""
             <div class="metric-card">
-                <div class="metric-value">{unique_categories}</div>
-                <div class="metric-label">Categories</div>
+                <div class="metric-value" style="color: #667eea;">{english_papers}</div>
+                <div class="metric-label">English Papers</div>
             </div>
             """, unsafe_allow_html=True)
         
         with stats_cols[2]:
-            if 'year' in all_papers_df.columns:
-                recent_year = all_papers_df['year'].max()
+            chinese_papers = len(papers_df[papers_df['language'] == 'zh'])
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value" style="color: #ef4444;">{chinese_papers}</div>
+                <div class="metric-label">中文论文</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with stats_cols[3]:
+            if 'year' in papers_df.columns:
+                recent_year = papers_df['year'].max()
                 st.markdown(f"""
                 <div class="metric-card">
                     <div class="metric-value">{recent_year}</div>
                     <div class="metric-label">Latest Year</div>
                 </div>
-            """, unsafe_allow_html=True)
-        
-        with stats_cols[3]:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{cnki_papers}</div>
-                <div class="metric-label">Chinese Papers</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with stats_cols[4]:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{pdf_papers}</div>
-                <div class="metric-label">PDF Uploads</div>
-            </div>
-            """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
     
+    # Search and Filter
     with st.container():
         st.markdown("""
         <div class="card" style="margin-top: 24px;">
             <h3 style="color: #1e293b; font-size: 20px; font-weight: 600; margin-bottom: 20px;">
-                🔍 Search & Filter Papers
+                🔍 Search & Filter Papers | 搜索和筛选论文
             </h3>
         """, unsafe_allow_html=True)
         
-        search_cols = st.columns([3, 1, 1, 1])
+        search_cols = st.columns([3, 1, 1])
         with search_cols[0]:
             search_query = st.text_input(
-                "Search papers by title, authors, or abstract",
-                placeholder="Type keywords to search (English or Chinese)...",
+                "Search papers by title, authors, or abstract | 按标题、作者或摘要搜索",
+                placeholder="Type keywords in English or Chinese... | 输入英文或中文关键词...",
                 key="library_search"
             )
         
         with search_cols[1]:
-            if 'category' in all_papers_df.columns:
-                categories = sorted(all_papers_df['category'].dropna().unique().tolist())
-                selected_category = st.selectbox("Category", ["All Categories"] + categories, key="category_filter")
+            if 'category' in papers_df.columns:
+                categories = sorted(papers_df['category'].dropna().unique().tolist())
+                selected_category = st.selectbox("Category | 类别", ["All Categories | 所有类别"] + categories, key="category_filter")
         
         with search_cols[2]:
-            if 'year' in all_papers_df.columns:
-                years = sorted(all_papers_df['year'].dropna().unique().tolist(), reverse=True)
-                selected_year = st.selectbox("Year", ["All Years"] + [str(y) for y in years], key="year_filter")
-        
-        with search_cols[3]:
-            paper_type_filter = st.selectbox(
-                "Paper Type", 
-                ["All Types", "Chinese (CNKI)", "PDF Upload", "Journal", "Other"],
-                key="type_filter"
-            )
+            language_filter = st.selectbox("Language | 语言", ["All | 全部", "English | 英文", "Chinese | 中文"], key="language_filter")
         
         st.markdown("</div>", unsafe_allow_html=True)
     
-    filtered_df = all_papers_df.copy()
-    
-    if not all_papers_df.empty:
-        if search_query:
-            mask = (
-                filtered_df['title'].str.contains(search_query, case=False, na=False) |
-                filtered_df['abstract'].str.contains(search_query, case=False, na=False) |
-                filtered_df['authors'].apply(lambda x: search_query.lower() in str(x).lower() if isinstance(x, list) else search_query.lower() in str(x).lower())
+    # CNKI Search Section
+    with st.expander("🔍 Search CNKI Database | 搜索知网数据库", expanded=False):
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            cnki_keyword = st.text_input(
+                "Enter Chinese keywords to search CNKI | 输入中文关键词搜索知网",
+                placeholder="例如：深度学习 金融预测",
+                key="cnki_search"
             )
-            filtered_df = filtered_df[mask]
+        with col2:
+            cnki_results_count = st.slider("Number of results | 结果数量", 1, 20, 5, key="cnki_results")
         
-        if 'category' in filtered_df.columns and selected_category != "All Categories":
-            filtered_df = filtered_df[filtered_df['category'] == selected_category]
-        
-        if 'year' in filtered_df.columns and selected_year != "All Years":
-            filtered_df = filtered_df[filtered_df['year'] == int(selected_year)]
-        
-        if paper_type_filter != "All Types":
-            if paper_type_filter == "Chinese (CNKI)":
-                filtered_df = filtered_df[filtered_df['arxiv_id'].str.startswith('CNKI', na=False)]
-            elif paper_type_filter == "PDF Upload":
-                filtered_df = filtered_df[filtered_df['arxiv_id'].str.startswith('PDF', na=False)]
-            elif paper_type_filter == "Journal":
-                filtered_df = filtered_df[filtered_df['type'].str.contains('journal', case=False, na=False)]
-        
-        filtered_df = filtered_df.sort_values('published_date', ascending=False) if 'published_date' in filtered_df.columns else filtered_df
-    
-    if filtered_df.empty:
-        st.markdown("""
-        <div class="card" style="text-align: center; padding: 48px 24px;">
-            <div style="font-size: 48px; margin-bottom: 16px;">🔍</div>
-            <h3 style="color: #475569; margin-bottom: 8px;">No papers found</h3>
-            <p style="color: #94a3b8;">Try adjusting your search or filter criteria</p>
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown(f"""
-        <div style="display: flex; justify-content: space-between; align-items: center; margin: 32px 0 16px 0;">
-            <div>
-                <h3 style="color: #1e293b; font-size: 20px; font-weight: 600; margin: 0;">
-                    📄 Found {len(filtered_df)} papers
-                </h3>
-            </div>
-            <div>
-                <button onclick="exportPapers()" style="
-                    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-                    color: white;
-                    border: none;
-                    padding: 8px 20px;
-                    border-radius: 12px;
-                    font-size: 14px;
-                    font-weight: 500;
-                    cursor: pointer;
-                    transition: all 0.2s ease;
-                " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(16, 185, 129, 0.3)'"
-                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
-                    📊 Export Results
-                </button>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        for idx, paper in filtered_df.iterrows():
-            paper_type = paper.get('type', 'unknown')
-            paper_type_badge = ""
-            
-            if paper.get('arxiv_id', '').startswith('CNKI'):
-                paper_type_badge = '<span class="badge badge-secondary" style="background-color: #fee2e2; color: #dc2626;">🇨🇳 Chinese</span>'
-            elif paper.get('arxiv_id', '').startswith('PDF'):
-                paper_type_badge = '<span class="badge badge-secondary" style="background-color: #dbeafe; color: #1e40af;">📄 PDF Upload</span>'
-            
-            if paper_type == 'journal' or paper_type == 'cnki_journal':
-                paper_type_badge += '<span class="badge badge-secondary">📖 Journal</span>'
-            elif paper_type == 'pdf_upload':
-                paper_type_badge += '<span class="badge badge-secondary">📤 Uploaded</span>'
-            else:
-                paper_type_badge += '<span class="badge badge-secondary">📄 Paper</span>'
-            
-            keywords_html = ""
-            if paper.get('keywords'):
-                keywords_list = paper['keywords'][:3] if isinstance(paper['keywords'], list) else []
-                if keywords_list:
-                    keywords_html = f"""
-                    <div style="margin: 8px 0;">
-                        <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">🏷️ Keywords:</div>
-                        <div style="display: flex; flex-wrap: wrap; gap: 4px;">
-                            {''.join([f'<span style="background: #e2e8f0; color: #475569; padding: 2px 8px; border-radius: 12px; font-size: 11px;">{kw}</span>' for kw in keywords_list])}
+        if st.button("🔍 Search CNKI | 搜索知网", key="search_cnki"):
+            with st.spinner("Searching CNKI database... | 正在搜索知网数据库..."):
+                cnki_papers = search_cnki_papers(cnki_keyword, cnki_results_count)
+                
+                if cnki_papers:
+                    st.success(f"Found {len(cnki_papers)} papers from CNKI | 从知网找到{len(cnki_papers)}篇论文")
+                    
+                    for paper in cnki_papers:
+                        st.markdown(f"""
+                        <div class="paper-item" style="border-left-color: #ef4444;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                                <div style="flex: 1;">
+                                    <div class="paper-title">
+                                        <span style="color: #ef4444; margin-right: 8px;">🇨🇳</span>
+                                        {paper['title']}
+                                    </div>
+                                    <div class="paper-authors">
+                                        👥 {', '.join(paper['authors'])}
+                                    </div>
+                                </div>
+                                <div style="text-align: right; min-width: 120px;">
+                                    <span class="badge badge-primary" style="background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca;">
+                                        CNKI
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div style="display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;">
+                                <span class="badge badge-secondary">
+                                    📅 {paper['year']}
+                                </span>
+                                <span class="badge badge-secondary">
+                                    🏷️ {', '.join(paper['keywords'][:3])}
+                                </span>
+                            </div>
+                            
+                            <div class="paper-abstract">
+                                <div style="font-weight: 600; color: #475569; margin-bottom: 8px; font-size: 13px;">
+                                    摘要 | ABSTRACT
+                                </div>
+                                {paper['abstract']}
+                            </div>
+                            
+                            <div style="display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap;">
+                                <button onclick="classifyCNKIPaper('{paper['title'].replace("'", "\\'")}', '{paper['abstract'].replace("'", "\\'")}')" style="
+                                    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+                                    color: white;
+                                    border: none;
+                                    padding: 6px 16px;
+                                    border-radius: 8px;
+                                    font-size: 13px;
+                                    font-weight: 500;
+                                    cursor: pointer;
+                                    display: inline-flex;
+                                    align-items: center;
+                                    gap: 6px;
+                                    transition: all 0.2s ease;
+                                " onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(239, 68, 68, 0.3)'"
+                                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                                    🤖 分类此论文
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                    """
-            
-            # PDF và arXiv links
-            links_html = ""
-            if paper.get('arxiv_url'):
-                links_html += f"""
-                <a href="{paper['arxiv_url']}" target="_blank" style="
-                    background: #e0e7ff;
-                    color: #3730a3;
-                    text-decoration: none;
-                    padding: 6px 16px;
-                    border-radius: 8px;
-                    font-size: 13px;
-                    font-weight: 500;
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 6px;
-                    transition: all 0.2s ease;
-                " onmouseover="this.style.background='#c7d2fe'; this.style.transform='translateY(-1px)'"
-                onmouseout="this.style.background='#e0e7ff'; this.style.transform='translateY(0)'">
-                    📄 arXiv
-                </a>
-                """
-            
-            if paper.get('pdf_url'):
-                links_html += f"""
-                <a href="{paper['pdf_url']}" target="_blank" style="
-                    background: #fee2e2;
-                    color: #991b1b;
-                    text-decoration: none;
-                    padding: 6px 16px;
-                    border-radius: 8px;
-                    font-size: 13px;
-                    font-weight: 500;
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 6px;
-                    transition: all 0.2s ease;
-                " onmouseover="this.style.background='#fecaca'; this.style.transform='translateY(-1px)'"
-                onmouseout="this.style.background='#fee2e2'; this.style.transform='translateY(0)'">
-                    📥 PDF
-                </a>
-                """
-            
-            paper_html = f"""
-            <div class="paper-item">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
-                    <div style="flex: 1;">
-                        <div class="paper-title">
-                            <span style="color: #667eea; margin-right: 8px;">📄</span>
-                            {paper.get('title', 'Untitled')}
-                        </div>
-                        <div class="paper-authors">
-                            👥 {', '.join(paper.get('authors', [])) if isinstance(paper.get('authors', []), list) else paper.get('authors', 'Unknown')}
-                        </div>
-                    </div>
-                    <div style="text-align: right; min-width: 120px;">
-                        <span class="badge badge-primary" style="background-color: {paper.get('category_color', '#e0e7ff')}20; color: {paper.get('category_color', '#3730a3')}; border: 1px solid {paper.get('category_color', '#3730a3')}40;">
-                            {paper.get('category', 'Unknown')}
-                        </span>
-                    </div>
-                </div>
-                
-                <div style="display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;">
-                    <span class="badge badge-secondary">
-                        📅 {paper.get('date_display', 'Unknown date')}
-                    </span>
-                    {paper_type_badge}
-                    <span class="badge badge-secondary">
-                        📊 {paper.get('source', 'Unknown')}
-                    </span>
-                </div>
-                
-                {keywords_html}
-                
-                <div class="paper-abstract">
-                    <div style="font-weight: 600; color: #475569; margin-bottom: 8px; font-size: 13px;">
-                        ABSTRACT / DESCRIPTION
-                    </div>
-                    {paper.get('abstract', 'No abstract available')}
-                </div>
-                
-                <div style="display: flex; gap: 8px; margin-top: 16px;">
-                    {links_html}
-                </div>
-            </div>
-            """
-            
-            st.markdown(paper_html, unsafe_allow_html=True)
+                        """, unsafe_allow_html=True)
+                else:
+                    st.warning("No papers found on CNKI | 未在知网找到相关论文")
 
 # ==================== ENHANCED CLASSIFIER ====================
 def display_classification_results(top_results, paper_title="", abstract_text=""):
@@ -1261,17 +874,21 @@ def display_classification_results(top_results, paper_title="", abstract_text=""
         return
     
     top_category = top_results[0]
+    language = top_results[0].get('language', 'en')
     
     if top_category["confidence"] > 70:
         confidence_color = "#10b981"
-        confidence_level = "High"
+        confidence_level = "High" if language == "en" else "高"
     elif top_category["confidence"] > 40:
         confidence_color = "#f59e0b"
-        confidence_level = "Medium"
+        confidence_level = "Medium" if language == "en" else "中"
     else:
         confidence_color = "#ef4444"
-        confidence_level = "Low"
+        confidence_level = "Low" if language == "en" else "低"
     
+    language_label = "Chinese | 中文" if language == "zh" else "English | 英文"
+    
+    # Display results
     st.markdown(f"""
     <div class="card" style="margin: 24px 0;">
         <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
@@ -1280,10 +897,13 @@ def display_classification_results(top_results, paper_title="", abstract_text=""
             </div>
             <div style="flex: 1;">
                 <h3 style="margin: 0 0 8px 0; color: #1e293b; font-size: 20px;">
-                    🤖 AI Classification Results
+                    AI Classification Results | AI分类结果
                 </h3>
                 <p style="margin: 0; color: #64748b; font-size: 14px;">
-                    Based on bilingual keyword analysis (English & Chinese)
+                    Based on bilingual keyword analysis | 基于双语关键词分析
+                    <span style="background: #e2e8f0; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 8px;">
+                        {language_label}
+                    </span>
                 </p>
             </div>
         </div>
@@ -1293,7 +913,9 @@ def display_classification_results(top_results, paper_title="", abstract_text=""
                 <div style="background: {confidence_color}10; padding: 20px; border-radius: 12px; border-left: 4px solid {confidence_color};">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                         <div>
-                            <div style="font-size: 14px; color: #64748b; margin-bottom: 4px;">Primary Classification</div>
+                            <div style="font-size: 14px; color: #64748b; margin-bottom: 4px;">
+                                Primary Classification | 主要分类
+                            </div>
                             <div style="font-size: 24px; font-weight: 700; color: {top_category['color']};">
                                 {top_category['category']}
                             </div>
@@ -1303,13 +925,15 @@ def display_classification_results(top_results, paper_title="", abstract_text=""
                                 {top_category['confidence']:.1f}%
                             </div>
                             <div style="font-size: 12px; color: {confidence_color};">
-                                {confidence_level} Confidence
+                                {confidence_level} Confidence | {confidence_level}置信度
                             </div>
                         </div>
                     </div>
                     
                     <div style="margin-top: 16px;">
-                        <div style="font-size: 13px; color: #64748b; margin-bottom: 8px;">Matched Keywords ({top_category['total_matches']} found):</div>
+                        <div style="font-size: 13px; color: #64748b; margin-bottom: 8px;">
+                            Matched Keywords | 匹配关键词:
+                        </div>
                         <div style="display: flex; flex-wrap: wrap; gap: 6px;">
                             {''.join([f'<span style="background: {top_category["color"]}20; color: {top_category["color"]}; padding: 4px 10px; border-radius: 16px; font-size: 12px; font-weight: 500;">{kw}</span>' for kw in top_category["matched_keywords"][:8]])}
                         </div>
@@ -1319,19 +943,21 @@ def display_classification_results(top_results, paper_title="", abstract_text=""
             
             <div>
                 <div style="background: #f8fafc; padding: 20px; border-radius: 12px;">
-                    <div style="font-size: 14px; color: #64748b; margin-bottom: 12px;">Classification Details</div>
+                    <div style="font-size: 14px; color: #64748b; margin-bottom: 12px;">
+                        Classification Details | 分类详情
+                    </div>
                     <div style="font-size: 12px; color: #475569; line-height: 1.6;">
                         <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
-                            <span>Total Keywords Matched:</span>
+                            <span>Total Keywords Matched | 匹配关键词总数:</span>
                             <span style="font-weight: 600;">{top_category['total_matches']}</span>
                         </div>
                         <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
-                            <span>Classification Score:</span>
+                            <span>Classification Score | 分类得分:</span>
                             <span style="font-weight: 600;">{top_category['score']:.2f}</span>
                         </div>
                         <div style="display: flex; justify-content: space-between;">
-                            <span>Language Support:</span>
-                            <span style="font-weight: 600;">English & Chinese</span>
+                            <span>Algorithm | 算法:</span>
+                            <span style="font-weight: 600;">Bilingual Keyword-based | 双语关键词</span>
                         </div>
                     </div>
                 </div>
@@ -1340,25 +966,27 @@ def display_classification_results(top_results, paper_title="", abstract_text=""
     </div>
     """, unsafe_allow_html=True)
     
-    st.progress(top_category["confidence"] / 100, text=f"Model Confidence: {top_category['confidence']:.1f}%")
+    st.progress(top_category["confidence"] / 100, 
+                text=f"Model Confidence: {top_category['confidence']:.1f}% | 模型置信度: {top_category['confidence']:.1f}%")
     
-    st.markdown("### 📊 All Category Scores")
-    cols = st.columns(min(len(top_results), 5))
+    # All categories
+    st.markdown("### 📊 All Category Scores | 所有类别得分")
+    cols = st.columns(min(5, len(top_results)))
     for idx, (col, result) in enumerate(zip(cols, top_results)):
         with col:
             st.markdown(f"""
-            <div style="background: white; border-radius: 12px; padding: 16px; border: 1px solid #e2e8f0; text-align: center; height: 140px;">
+            <div style="background: white; border-radius: 12px; padding: 16px; border: 1px solid #e2e8f0; text-align: center;">
                 <div style="font-size: 24px; margin-bottom: 8px; color: {result['color']}">
                     {result['icon']}
                 </div>
-                <div style="font-size: 14px; font-weight: 600; color: #1e293b; margin-bottom: 8px; line-height: 1.2;">
+                <div style="font-size: 14px; font-weight: 600; color: #1e293b; margin-bottom: 8px;">
                     {result['category']}
                 </div>
                 <div style="font-size: 20px; font-weight: 700; color: {result['color']}; margin-bottom: 4px;">
                     {result['confidence']:.1f}%
                 </div>
                 <div style="font-size: 11px; color: #64748b;">
-                    {result['total_matches']} matches
+                    {result['total_matches']} keywords matched | {result['total_matches']}个关键词匹配
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -1375,10 +1003,11 @@ def display_enhanced_classifier():
             </div>
             <div>
                 <h2 style="color: #1e293b; font-size: 28px; font-weight: 700; margin: 0 0 8px 0;">
-                    Bilingual AI Classifier
+                    Enhanced AI Classifier | 增强AI分类器
                 </h2>
                 <p style="color: #64748b; margin: 0; font-size: 16px;">
-                    Classify finance papers using bilingual keyword analysis
+                    Classify finance papers in English and Chinese using bilingual keyword analysis | 
+                    使用双语关键词分析分类英文和中文金融论文
                 </p>
             </div>
         </div>
@@ -1391,32 +1020,32 @@ def display_enhanced_classifier():
         st.markdown("""
         <div class="card">
             <h3 style="color: #1e293b; font-size: 20px; font-weight: 600; margin-bottom: 20px;">
-                📝 Input Paper Details (English or Chinese)
+                📝 Input Paper Details | 输入论文详情
             </h3>
         """, unsafe_allow_html=True)
         
         paper_title = st.text_area(
-            "Paper Title",
-            placeholder="Enter the research paper title (English or Chinese)...",
+            "Paper Title | 论文标题",
+            placeholder="Enter paper title in English or Chinese... | 输入英文或中文论文标题...",
             height=60,
             key="classifier_title"
         )
         
         paper_abstract = st.text_area(
-            "Abstract / Summary",
-            placeholder="Paste the abstract or summary of the paper...",
+            "Abstract / Summary | 摘要 / 总结",
+            placeholder="Paste the abstract or summary in English or Chinese... | 粘贴英文或中文摘要...",
             height=200,
             key="classifier_abstract"
         )
         
         col_opt1, col_opt2 = st.columns(2)
         with col_opt1:
-            top_k = st.slider("Number of categories", 3, 10, 5, key="top_k_slider")
+            top_k = st.slider("Number of categories | 类别数量", 3, 10, 5, key="top_k_slider")
         with col_opt2:
-            min_confidence = st.slider("Minimum confidence (%)", 10, 100, 20, key="min_confidence")
+            min_confidence = st.slider("Minimum confidence (%) | 最小置信度(%)", 20, 100, 30, key="min_confidence")
         
         classify_button = st.button(
-            "🚀 Run Bilingual Classification",
+            "🚀 Run Enhanced Classification | 运行增强分类",
             type="primary",
             use_container_width=True,
             key="enhanced_classify_button"
@@ -1425,48 +1054,75 @@ def display_enhanced_classifier():
         st.markdown("</div>", unsafe_allow_html=True)
     
     with col2:
-        total_keywords = sum(len(data['keywords']) for data in FINANCE_KEYWORD_DATABASE.values())
+        total_keywords_en = sum(len(data['keywords_en']) for data in FINANCE_KEYWORD_DATABASE.values())
+        total_keywords_zh = sum(len(data['keywords_zh']) for data in FINANCE_KEYWORD_DATABASE.values())
+        total_keywords = total_keywords_en + total_keywords_zh
         
         st.markdown(f"""
         <div class="card">
             <h3 style="color: #1e293b; font-size: 20px; font-weight: 600; margin-bottom: 20px;">
-                📚 Bilingual Database
+                📚 Classification Database | 分类数据库
             </h3>
             
             <div style="margin-bottom: 24px;">
-                <div style="font-size: 14px; color: #64748b; margin-bottom: 8px;">Database Statistics</div>
+                <div style="font-size: 14px; color: #64748b; margin-bottom: 8px;">Database Statistics | 数据库统计</div>
                 <div style="background: #f8fafc; padding: 16px; border-radius: 12px;">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <span style="color: #475569;">Categories:</span>
+                        <span style="color: #475569;">Categories | 类别:</span>
                         <span style="font-weight: 600; color: #667eea;">{len(FINANCE_KEYWORD_DATABASE)}</span>
                     </div>
                     <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <span style="color: #475569;">Total Keywords:</span>
-                        <span style="font-weight: 600; color: #667eea;">{total_keywords}</span>
+                        <span style="color: #475569;">English Keywords | 英文关键词:</span>
+                        <span style="font-weight: 600; color: #667eea;">{total_keywords_en}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: #475569;">Chinese Keywords | 中文关键词:</span>
+                        <span style="font-weight: 600; color: #ef4444;">{total_keywords_zh}</span>
                     </div>
                     <div style="display: flex; justify-content: space-between;">
-                        <span style="color: #475569;">Language Support:</span>
-                        <span style="font-weight: 600; color: #22c55e;">English & Chinese</span>
+                        <span style="color: #475569;">Total Keywords | 总关键词:</span>
+                        <span style="font-weight: 600; color: #10b981;">{total_keywords}</span>
                     </div>
                 </div>
             </div>
             
-            <div style="margin-bottom: 16px;">
-                <div style="font-size: 14px; color: #64748b; margin-bottom: 8px;">New Categories:</div>
-                <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-                    <span style="background: #22c55e20; color: #22c55e; padding: 4px 10px; border-radius: 16px; font-size: 12px; font-weight: 500;">🌿 Green Finance</span>
-                    <span style="background: #0ea5e920; color: #0ea5e9; padding: 4px 10px; border-radius: 16px; font-size: 12px; font-weight: 500;">🌍 Climate Finance</span>
+            <div>
+                <div style="font-size: 14px; color: #64748b; margin-bottom: 12px;">Supported Categories | 支持的类别</div>
+                <div style="max-height: 300px; overflow-y: auto;">
+        """, unsafe_allow_html=True)
+        
+        # Display categories
+        for category, data in FINANCE_KEYWORD_DATABASE.items():
+            st.markdown(f"""
+            <div style="background: {data['color']}10; padding: 12px; border-radius: 8px; margin-bottom: 8px; border-left: 4px solid {data['color']};">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="font-size: 16px;">{data['icon']}</div>
+                        <div style="font-size: 13px; font-weight: 500; color: #1e293b;">{category}</div>
+                    </div>
+                    <div style="display: flex; gap: 4px;">
+                        <div style="background: #667eea30; color: #667eea; padding: 2px 6px; border-radius: 10px; font-size: 10px; font-weight: 600;">
+                            {len(data['keywords_en'])} EN
+                        </div>
+                        <div style="background: #ef444430; color: #ef4444; padding: 2px 6px; border-radius: 10px; font-size: 10px; font-weight: 600;">
+                            {len(data['keywords_zh'])} 中
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
+        
+        st.markdown("</div></div></div>", unsafe_allow_html=True)
     
     if classify_button and (paper_title or paper_abstract):
-        with st.spinner("🔍 Analyzing text with bilingual keyword database..."):
+        with st.spinner("🔍 Analyzing text with bilingual keyword database... | 使用双语关键词数据库分析文本..."):
             time.sleep(1)
             
             combined_text = f"{paper_title} {paper_abstract}"
-            classification_results = enhanced_classify_with_confidence(combined_text, top_k=top_k)
+            classification_results = enhanced_classify_with_confidence_bilingual(
+                combined_text, 
+                top_k=top_k
+            )
             
             filtered_results = [
                 r for r in classification_results 
@@ -1477,12 +1133,13 @@ def display_enhanced_classifier():
                 display_classification_results(filtered_results, paper_title, paper_abstract)
                 
                 st.markdown("---")
-                st.markdown("#### 📥 Export Classification Results")
+                st.markdown("#### 📥 Export Classification Results | 导出分类结果")
                 
                 export_data = {
                     "title": paper_title,
                     "abstract": paper_abstract[:500],
                     "timestamp": datetime.now().isoformat(),
+                    "language": filtered_results[0].get('language', 'en'),
                     "classification_results": [
                         {
                             "category": r["category"],
@@ -1498,173 +1155,62 @@ def display_enhanced_classifier():
                 with col_exp1:
                     st.download_button(
                         label="📁 Download JSON",
-                        data=json.dumps(export_data, indent=2, ensure_ascii=False),
+                        data=json.dumps(export_data, indent=2),
                         file_name=f"classification_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
                         mime="application/json",
                         use_container_width=True
                     )
                 
                 with col_exp2:
-                    results_df = pd.DataFrame(filtered_results)
-                    results_df = results_df[['category', 'confidence', 'total_matches']]
                     st.download_button(
                         label="📊 Download CSV",
-                        data=results_df.to_csv(index=False),
+                        data=pd.DataFrame(filtered_results).to_csv(index=False),
                         file_name=f"classification_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
                         mime="text/csv",
                         use_container_width=True
                     )
             else:
-                st.warning(f"No categories found with confidence ≥ {min_confidence}%")
+                st.warning(f"No categories found with confidence ≥ {min_confidence}% | 未找到置信度≥{min_confidence}%的类别")
     elif classify_button:
-        st.error("Please enter at least a title or abstract to classify.")
+        st.error("Please enter at least a title or abstract to classify. | 请至少输入标题或摘要进行分类。")
 
-# ==================== STATISTICS DASHBOARD ====================
-def display_statistics():
-    """Display statistics dashboard"""
-    
-    # Combine loaded papers with uploaded papers
-    all_papers_df = papers_df.copy()
-    if st.session_state.uploaded_papers:
-        uploaded_df = pd.DataFrame(st.session_state.uploaded_papers)
-        all_papers_df = pd.concat([all_papers_df, uploaded_df], ignore_index=True)
-    
-    if all_papers_df.empty:
-        st.warning("No research papers loaded.")
-        return
-    
-    st.markdown("""
-    <div style="margin-bottom: 32px;">
-        <h2 style="color: #1e293b; font-size: 28px; font-weight: 700; margin-bottom: 8px;">
-            📊 Research Analytics
-        </h2>
-        <p style="color: #64748b; font-size: 16px; margin-bottom: 24px;">
-            Insights and trends from the bilingual research collection
-        </p>
+# ==================== SIDEBAR ====================
+st.sidebar.markdown("""
+<div style="padding: 20px 0;">
+    <div style="text-align: center; margin-bottom: 32px;">
+        <div style="font-size: 32px; margin-bottom: 8px;">📈</div>
+        <div style="font-size: 18px; font-weight: 600; color: #1e293b;">Finance Research Hub</div>
+        <div style="font-size: 12px; color: #64748b; margin-top: 4px;">v4.0 • Bilingual Edition</div>
     </div>
-    """, unsafe_allow_html=True)
-    
-    col1, col2, col3, col4, col5 = st.columns(5)
-    
-    with col1:
-        total_papers = len(all_papers_df)
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value" style="color: #667eea;">{total_papers}</div>
-            <div class="metric-label">Total Papers</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        chinese_papers = len(all_papers_df[all_papers_df['arxiv_id'].str.startswith('CNKI', na=False)])
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value" style="color: #ef4444;">{chinese_papers}</div>
-            <div class="metric-label">Chinese Papers</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        pdf_papers = len(all_papers_df[all_papers_df['arxiv_id'].str.startswith('PDF', na=False)])
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value" style="color: #10b981;">{pdf_papers}</div>
-            <div class="metric-label">PDF Uploads</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col4:
-        unique_categories = all_papers_df['category'].nunique() if 'category' in all_papers_df.columns else 0
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value" style="color: #8b5cf6;">{unique_categories}</div>
-            <div class="metric-label">Categories</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col5:
-        if 'year' in all_papers_df.columns:
-            recent_year = all_papers_df['year'].max()
-            st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value" style="color: #f59e0b;">{recent_year}</div>
-            <div class="metric-label">Latest Year</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    chart_col1, chart_col2 = st.columns(2)
-    
-    with chart_col1:
-        st.markdown("""
-        <div class="card" style="margin-top: 24px;">
-            <h3 style="color: #1e293b; font-size: 18px; font-weight: 600; margin-bottom: 20px;">
-                📈 Category Distribution
-            </h3>
-        """, unsafe_allow_html=True)
-        
-        if 'category' in all_papers_df.columns:
-            category_counts = all_papers_df['category'].value_counts().reset_index()
-            category_counts.columns = ['Category', 'Count']
-            
-            colors = []
-            for category in category_counts['Category']:
-                colors.append(FINANCE_KEYWORD_DATABASE.get(category, {}).get('color', '#94a3b8'))
-            
-            fig = go.Figure(data=[go.Pie(
-                labels=category_counts['Category'],
-                values=category_counts['Count'],
-                hole=.4,
-                marker_colors=colors,
-                textinfo='label+percent',
-                textposition='outside'
-            )])
-            
-            fig.update_layout(
-                height=400,
-                showlegend=False,
-                margin=dict(t=0, b=0, l=0, r=0)
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
-        
-        st.markdown("</div>", unsafe_allow_html=True)
-    
-    with chart_col2:
-        st.markdown("""
-        <div class="card" style="margin-top: 24px;">
-            <h3 style="color: #1e293b; font-size: 18px; font-weight: 600; margin-bottom: 20px;">
-                📅 Publication Trend
-            </h3>
-        """, unsafe_allow_html=True)
-        
-        if 'year' in all_papers_df.columns:
-            yearly_counts = all_papers_df['year'].value_counts().sort_index().reset_index()
-            yearly_counts.columns = ['Year', 'Count']
-            
-            fig = go.Figure()
-            
-            fig.add_trace(go.Scatter(
-                x=yearly_counts['Year'],
-                y=yearly_counts['Count'],
-                mode='lines+markers',
-                line=dict(color='#667eea', width=4),
-                marker=dict(size=10, color='white', line=dict(width=2, color='#667eea')),
-                fill='tozeroy',
-                fillcolor='rgba(102, 126, 234, 0.1)',
-                name='Papers Published'
-            ))
-            
-            fig.update_layout(
-                height=400,
-                xaxis_title="Year",
-                yaxis_title="Number of Papers",
-                hovermode='x unified',
-                margin=dict(t=30, b=50, l=50, r=30)
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
-        
-        st.markdown("</div>", unsafe_allow_html=True)
+</div>
+""", unsafe_allow_html=True)
+
+# Navigation
+st.sidebar.header("🧭 Navigation | 导航")
+app_mode = st.sidebar.radio(
+    "",
+    ["📚 Research Library", "🤖 Enhanced Classifier", "📊 Analytics"],
+    help="Switch between different features | 在不同功能间切换",
+    label_visibility="collapsed"
+)
+
+# Quick actions
+st.sidebar.markdown("---")
+st.sidebar.header("⚡ Quick Actions | 快速操作")
+
+if st.sidebar.button("🔄 Refresh Data | 刷新数据", use_container_width=True):
+    st.cache_data.clear()
+    st.rerun()
+
+if st.sidebar.button("📥 Export All Papers | 导出所有论文", use_container_width=True):
+    if not papers_df.empty:
+        csv = papers_df.to_csv(index=False)
+        st.sidebar.download_button(
+            label="Download CSV | 下载CSV",
+            data=csv,
+            file_name=f"finance_papers_{datetime.now().strftime('%Y%m%d')}.csv",
+            mime="text/csv"
+        )
 
 # ==================== MAIN APP ROUTING ====================
 if app_mode == "📚 Research Library":
@@ -1673,11 +1219,18 @@ if app_mode == "📚 Research Library":
 elif app_mode == "🤖 Enhanced Classifier":
     display_enhanced_classifier()
     
-elif app_mode == "📄 PDF Processor":
-    display_pdf_processor()
-    
 elif app_mode == "📊 Analytics":
-    display_statistics()
+    # Simple analytics placeholder
+    st.markdown("""
+    <div style="margin-bottom: 32px;">
+        <h2 style="color: #1e293b; font-size: 28px; font-weight: 700; margin-bottom: 8px;">
+            📊 Analytics Dashboard | 分析仪表板
+        </h2>
+        <p style="color: #64748b; font-size: 16px; margin-bottom: 24px;">
+            Coming soon with bilingual statistics... | 即将推出双语统计功能...
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
 
 # ==================== FOOTER ====================
 st.markdown("""
@@ -1685,21 +1238,132 @@ st.markdown("""
     <div style="font-size: 14px; margin-bottom: 8px;">
         Finance Research Hub • v4.0 • Bilingual Edition • Made with ❤️ for researchers
     </div>
-    <div style="font-size: 12px; color: #64748b; margin-bottom: 16px;">
-        Supports English & Chinese papers • {len(FINANCE_KEYWORD_DATABASE)} finance categories • PDF Upload
+    <div style="display: flex; justify-content: center; gap: 24px; margin-top: 16px;">
+        <span style="color: #64748b; font-size: 13px;">🌍 Support: English & Chinese</span>
+        <span style="color: #64748b; font-size: 13px;">📚 Sources: arXiv & CNKI</span>
+        <span style="color: #64748b; font-size: 13px;">🤖 AI: Bilingual Classification</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-# Add JavaScript
+# Add JavaScript for classification
 st.markdown("""
 <script>
 function classifyPaper(title, abstract) {
-    alert('Switching to classifier with paper: ' + title.substring(0, 50) + '...');
+    // Create notification
+    const notification = document.createElement('div');
+    notification.innerHTML = `
+        <div style="
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(102, 126, 234, 0.3);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            animation: slideIn 0.3s ease;
+            max-width: 400px;
+        ">
+            <div style="font-size: 24px;">🤖</div>
+            <div style="flex: 1;">
+                <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">Classification Started | 分类开始</div>
+                <div style="font-size: 12px; opacity: 0.9; line-height: 1.4;">
+                    Redirecting to classifier with paper:<br>
+                    <strong>${title.substring(0, 50)}...</strong>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(notification);
+    
+    // Store paper info
+    localStorage.setItem('paper_to_classify', JSON.stringify({
+        title: title,
+        abstract: abstract,
+        timestamp: new Date().toISOString()
+    }));
+    
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
 }
 
-function exportPapers() {
-    alert('Export functionality would be implemented here.');
+function classifyCNKIPaper(title, abstract) {
+    // Create CNKI-specific notification
+    const notification = document.createElement('div');
+    notification.innerHTML = `
+        <div style="
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(239, 68, 68, 0.3);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            animation: slideIn 0.3s ease;
+            max-width: 400px;
+        ">
+            <div style="font-size: 24px;">🇨🇳</div>
+            <div style="flex: 1;">
+                <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">CNKI论文分类开始</div>
+                <div style="font-size: 12px; opacity: 0.9; line-height: 1.4;">
+                    正在使用双语AI分类知网论文:<br>
+                    <strong>${title.substring(0, 50)}...</strong>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(notification);
+    
+    // Store CNKI paper info
+    localStorage.setItem('cnki_paper_to_classify', JSON.stringify({
+        title: title,
+        abstract: abstract,
+        source: 'CNKI',
+        timestamp: new Date().toISOString()
+    }));
+    
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
 }
+
+// Add animations
+const style = document.createElement('style');
+style.innerHTML = `
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    @keyframes slideOut {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+    }
+`;
+document.head.appendChild(style);
 </script>
 """, unsafe_allow_html=True)
