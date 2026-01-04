@@ -104,19 +104,31 @@ def display_research_library():
         with stats_cols[0]:
             st.metric("Total Papers", len(papers_df))
         with stats_cols[1]:
-            unique_categories = papers_df['category'].nunique() if 'category' in papers_df.columns else 0
+            # Kiểm tra cột category tồn tại
+            if 'category' in papers_df.columns:
+                unique_categories = papers_df['category'].nunique()
+            else:
+                unique_categories = 0
             st.metric("Categories", unique_categories)
         with stats_cols[2]:
-            recent_year = int(papers_df['year'].max()) if 'year' in papers_df.columns else 2025
+            if 'year' in papers_df.columns:
+                recent_year = int(papers_df['year'].max())
+            else:
+                recent_year = 2025
             st.metric("Latest Year", recent_year)
         with stats_cols[3]:
-            english_count = len(papers_df[papers_df['language'] == 'English'])
-            chinese_count = len(papers_df[papers_df['language'] == 'Chinese'])
-            st.metric("Languages", f"EN:{english_count}/CN:{chinese_count}")
+            if 'language' in papers_df.columns:
+                english_count = len(papers_df[papers_df['language'] == 'English'])
+                chinese_count = len(papers_df[papers_df['language'] == 'Chinese'])
+                st.metric("Languages", f"EN:{english_count}/CN:{chinese_count}")
+            else:
+                st.metric("Languages", "Unknown")
         with stats_cols[4]:
             if 'word_count' in papers_df.columns:
                 total_words = papers_df['word_count'].sum()
                 st.metric("Total Words", f"{total_words:,}")
+            else:
+                st.metric("Total Words", "N/A")
     
     # Search and filter section
     with st.container():
@@ -127,15 +139,27 @@ def display_research_library():
             search_query = st.text_input("Search papers (title, authors, abstract)", "")
         
         with search_cols[1]:
-            categories = sorted(papers_df['category'].dropna().unique().tolist())
+            # Kiểm tra cột category tồn tại
+            if 'category' in papers_df.columns and not papers_df.empty:
+                categories = sorted(papers_df['category'].dropna().unique().tolist())
+            else:
+                categories = []
             selected_category = st.selectbox("Category", ["All"] + categories)
         
         with search_cols[2]:
-            years = sorted(papers_df['year'].dropna().unique().tolist(), reverse=True)
+            # Kiểm tra cột year tồn tại
+            if 'year' in papers_df.columns and not papers_df.empty:
+                years = sorted(papers_df['year'].dropna().unique().tolist(), reverse=True)
+            else:
+                years = []
             selected_year = st.selectbox("Year", ["All"] + [str(int(y)) for y in years])
         
         with search_cols[3]:
-            languages = sorted(papers_df['language'].dropna().unique().tolist())
+            # Kiểm tra cột language tồn tại
+            if 'language' in papers_df.columns and not papers_df.empty:
+                languages = sorted(papers_df['language'].dropna().unique().tolist())
+            else:
+                languages = []
             selected_language = st.selectbox("Language", ["All"] + languages)
         
         with search_cols[4]:
@@ -154,26 +178,26 @@ def display_research_library():
             )
             filtered_df = filtered_df[mask]
         
-        # Apply category filter
-        if selected_category != "All":
+        # Apply category filter (chỉ nếu cột tồn tại)
+        if selected_category != "All" and 'category' in filtered_df.columns:
             filtered_df = filtered_df[filtered_df['category'] == selected_category]
         
-        # Apply year filter
-        if selected_year != "All":
+        # Apply year filter (chỉ nếu cột tồn tại)
+        if selected_year != "All" and 'year' in filtered_df.columns:
             filtered_df = filtered_df[filtered_df['year'] == int(selected_year)]
         
-        # Apply language filter
-        if selected_language != "All":
+        # Apply language filter (chỉ nếu cột tồn tại)
+        if selected_language != "All" and 'language' in filtered_df.columns:
             filtered_df = filtered_df[filtered_df['language'] == selected_language]
         
         # Apply sorting
-        if sort_by == "Newest":
+        if sort_by == "Newest" and 'year' in filtered_df.columns:
             filtered_df = filtered_df.sort_values('year', ascending=False)
-        elif sort_by == "Oldest":
+        elif sort_by == "Oldest" and 'year' in filtered_df.columns:
             filtered_df = filtered_df.sort_values('year', ascending=True)
-        elif sort_by == "Title A-Z":
+        elif sort_by == "Title A-Z" and 'title' in filtered_df.columns:
             filtered_df = filtered_df.sort_values('title')
-        elif sort_by == "Title Z-A":
+        elif sort_by == "Title Z-A" and 'title' in filtered_df.columns:
             filtered_df = filtered_df.sort_values('title', ascending=False)
     
     # Display results
@@ -185,12 +209,15 @@ def display_research_library():
         # Display papers in a nice format
         for idx, paper in filtered_df.iterrows():
             paper_id = paper.get('id', idx)
-            with st.expander(f"📄 **{paper.get('title', 'Untitled')}** ({paper.get('language', 'Unknown')})", expanded=False):
+            paper_title = paper.get('title', 'Untitled')
+            paper_language = paper.get('language', 'Unknown')
+            
+            with st.expander(f"📄 **{paper_title}** ({paper_language})", expanded=False):
                 col1, col2 = st.columns([3, 1])
                 
                 with col1:
                     # Paper title and authors
-                    st.markdown(f"### {paper.get('title', 'Untitled')}")
+                    st.markdown(f"### {paper_title}")
                     
                     # Authors
                     authors = paper.get('authors', [])
@@ -244,52 +271,33 @@ def display_research_library():
                     pdf_url = paper.get('pdf_url', '')
                     doi_value = paper.get('doi', '')
                     
-                    # Tooltip for arXiv button
-                    if arxiv_url and arxiv_url.strip() and arxiv_url.startswith(('http://', 'https://')):
-                        st.markdown('<span title="Open arXiv page">', unsafe_allow_html=True)
-                        safe_link_button(
-                            "📄 arXiv", 
-                            arxiv_url,
-                            key=f"arxiv_{paper_id}"
-                        )
-                        st.markdown('</span>', unsafe_allow_html=True)
-                    else:
-                        safe_link_button(
-                            "📄 arXiv", 
-                            arxiv_url,
-                            key=f"arxiv_{paper_id}"
-                        )
+                    # arXiv button
+                    safe_link_button(
+                        "📄 arXiv", 
+                        arxiv_url,
+                        key=f"arxiv_{paper_id}"
+                    )
                     
-                    # Tooltip for PDF button
-                    if pdf_url and pdf_url.strip() and pdf_url.startswith(('http://', 'https://')):
-                        st.markdown('<span title="Download PDF">', unsafe_allow_html=True)
-                        safe_link_button(
-                            "📥 PDF", 
-                            pdf_url,
-                            key=f"pdf_{paper_id}"
-                        )
-                        st.markdown('</span>', unsafe_allow_html=True)
-                    else:
-                        safe_link_button(
-                            "📥 PDF", 
-                            pdf_url,
-                            key=f"pdf_{paper_id}"
-                        )
+                    # PDF button
+                    safe_link_button(
+                        "📥 PDF", 
+                        pdf_url,
+                        key=f"pdf_{paper_id}"
+                    )
                     
                     # DOI button
                     if doi_value and isinstance(doi_value, str) and doi_value.strip():
                         doi_url = f"https://doi.org/{doi_value}"
-                        st.markdown('<span title="Open DOI page">', unsafe_allow_html=True)
                         safe_link_button(
                             "🔗 DOI", 
                             doi_url,
                             key=f"doi_{paper_id}"
                         )
-                        st.markdown('</span>', unsafe_allow_html=True)
                     
                     # Search link
-                    search_url = f"https://scholar.google.com/scholar?q={paper.get('title', '').replace(' ', '+')}"
-                    st.link_button("🔍 Search", search_url)
+                    if 'title' in paper:
+                        search_url = f"https://scholar.google.com/scholar?q={paper['title'].replace(' ', '+')}"
+                        st.link_button("🔍 Search", search_url)
                     
                     # Additional info
                     st.markdown("---")
