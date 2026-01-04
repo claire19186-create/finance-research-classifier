@@ -500,7 +500,10 @@ def create_chinese_papers():
             "word_count": 350,
             "language": "Chinese",
             "keywords": "养老金融, PMC指数模型, 政策评价, 科技赋能, 协同治理",
-            "published": "2025-01-15T00:00:00+00:00"
+            "published": "2025-01-15T00:00:00+00:00",
+            "arxiv_url": "",
+            "pdf_url": "",
+            "doi": ""
         },
         {
             "id": 102,
@@ -514,7 +517,10 @@ def create_chinese_papers():
             "word_count": 320,
             "language": "Chinese",
             "keywords": "数字人民币, 征信体系, 数据孤岛, 信用锚定, 区块链",
-            "published": "2025-02-20T00:00:00+00:00"
+            "published": "2025-02-20T00:00:00+00:00",
+            "arxiv_url": "",
+            "pdf_url": "",
+            "doi": ""
         },
         {
             "id": 103,
@@ -528,7 +534,10 @@ def create_chinese_papers():
             "word_count": 380,
             "language": "Chinese",
             "keywords": "绿色金融, 碳排放, 银行竞争, 人工智能",
-            "published": "2026-01-10T00:00:00+00:00"
+            "published": "2026-01-10T00:00:00+00:00",
+            "arxiv_url": "",
+            "pdf_url": "",
+            "doi": ""
         },
         {
             "id": 104,
@@ -542,21 +551,27 @@ def create_chinese_papers():
             "word_count": 280,
             "language": "Chinese",
             "keywords": "金融科技, 商业银行, 盈利能力",
-            "published": "2025-11-05T00:00:00+00:00"
+            "published": "2025-11-05T00:00:00+00:00",
+            "arxiv_url": "",
+            "pdf_url": "",
+            "doi": ""
         },
         {
             "id": 105,
             "title": "商业银行在绿色金融领域的发展策略与实践探索",
             "authors": ["刘桐伶"],
             "year": 2025,
-            "month": 36,
+            "month": 12,
             "category": "绿色金融",
             "abstract": "文章聚焦商业银行绿色金融转型的核心矛盾，揭示政策衔接失配、产品创新乏力、风险管控薄弱、专业能力不足等关键障碍。",
             "source": "中国集体经济",
             "word_count": 300,
             "language": "Chinese",
             "keywords": "商业银行, 绿色金融, 可持续发展",
-            "published": "2025-12-10T00:00:00+00:00"
+            "published": "2025-12-10T00:00:00+00:00",
+            "arxiv_url": "",
+            "pdf_url": "",
+            "doi": ""
         },
         {
             "id": 106,
@@ -570,7 +585,10 @@ def create_chinese_papers():
             "word_count": 340,
             "language": "Chinese",
             "keywords": "数字金融, 农机企业, 高质量发展, 异质性",
-            "published": "2025-11-20T00:00:00+00:00"
+            "published": "2025-11-20T00:00:00+00:00",
+            "arxiv_url": "",
+            "pdf_url": "",
+            "doi": ""
         },
         {
             "id": 107,
@@ -584,7 +602,10 @@ def create_chinese_papers():
             "word_count": 290,
             "language": "Chinese",
             "keywords": "金融科技, 农业新质生产力, 高质量发展",
-            "published": "2025-11-15T00:00:00+00:00"
+            "published": "2025-11-15T00:00:00+00:00",
+            "arxiv_url": "",
+            "pdf_url": "",
+            "doi": ""
         },
         {
             "id": 108,
@@ -598,21 +619,27 @@ def create_chinese_papers():
             "word_count": 270,
             "language": "Chinese",
             "keywords": "数字普惠金融, 农村居民, 消费升级",
-            "published": "2025-11-25T00:00:00+00:00"
+            "published": "2025-11-25T00:00:00+00:00",
+            "arxiv_url": "",
+            "pdf_url": "",
+            "doi": ""
         },
         {
             "id": 109,
             "title": "金融科技赋能商业银行数字化转型的理论机制与现实路径",
             "authors": ["肖煜"],
             "year": 2025,
-            "month": 33,
+            "month": 12,
             "category": "金融科技",
             "abstract": "金融科技是金融业未来发展的主流趋势，其实质是利用现代网络技术赋能金融行业。",
             "source": "中国市场",
             "word_count": 310,
             "language": "Chinese",
             "keywords": "金融科技, 商业银行, 数字化转型",
-            "published": "2025-12-05T00:00:00+00:00"
+            "published": "2025-12-05T00:00:00+00:00",
+            "arxiv_url": "",
+            "pdf_url": "",
+            "doi": ""
         },
         {
             "id": 110,
@@ -626,49 +653,61 @@ def create_chinese_papers():
             "word_count": 260,
             "language": "Chinese",
             "keywords": "金融科技, 商业银行, 资本管理, 效率提升",
-            "published": "2025-11-30T00:00:00+00:00"
+            "published": "2025-11-30T00:00:00+00:00",
+            "arxiv_url": "",
+            "pdf_url": "",
+            "doi": ""
         },
         {
             "id": 111,
             "title": "商业银行供应链金融风险治理研究",
             "authors": ["贾蓉"],
             "year": 2025,
-            "month": 22,
+            "month": 8,
             "category": "供应链金融",
             "abstract": "随着经济全球化与产业协同深化，供应链金融成为商业银行重要业务增长点，但其风险问题也日益凸显，系统剖析商业银行供应链金融风险并进行相应的风险治理势在必行。",
             "source": "全国流通经济",
             "word_count": 330,
             "language": "Chinese",
             "keywords": "商业银行, 供应链金融, 风险识别, 风险治理, 应急机制",
-            "published": "2025-08-15T00:00:00+00:00"
+            "published": "2025-08-15T00:00:00+00:00",
+            "arxiv_url": "",
+            "pdf_url": "",
+            "doi": ""
         },
         {
             "id": 112,
             "title": "金融数字化营销在我国商业银行金融业务中的应用与挑战",
             "authors": ["张宏宇", "陆冠呈", "赵艺萌", "华心慧"],
             "year": 2025,
-            "month": 22,
+            "month": 10,
             "category": "数字营销",
             "abstract": "金融数字化营销指的是金融业务与大数据技术、互联网信息技术、新媒体技术、人工智能技术等先进科学技术深度融合的营销模式。",
             "source": "现代商业",
             "word_count": 350,
             "language": "Chinese",
             "keywords": "金融业务, 数字化营销, 商业银行",
-            "published": "2025-10-20T00:00:00+00:00"
+            "published": "2025-10-20T00:00:00+00:00",
+            "arxiv_url": "",
+            "pdf_url": "",
+            "doi": ""
         },
         {
             "id": 113,
             "title": "绿色金融对我国企业动力消耗结构影响的实证研究",
             "authors": ["周志鑫", "梁海斌"],
             "year": 2025,
-            "month": 22,
+            "month": 9,
             "category": "绿色金融",
             "abstract": "绿色金融通过资金支持和风险保障机制，对企业动力消耗结构的优化具有显著推动作用。",
             "source": "现代商业",
             "word_count": 320,
             "language": "Chinese",
             "keywords": "绿色金融, 动力消耗结构, 产业结构, 绿色技术创新, 低碳化",
-            "published": "2025-09-25T00:00:00+00:00"
+            "published": "2025-09-25T00:00:00+00:00",
+            "arxiv_url": "",
+            "pdf_url": "",
+            "doi": ""
         },
         {
             "id": 114,
@@ -682,7 +721,10 @@ def create_chinese_papers():
             "word_count": 290,
             "language": "Chinese",
             "keywords": "数据资产, 数据资产融资, 商业银行, 数字金融",
-            "published": "2025-11-10T00:00:00+00:00"
+            "published": "2025-11-10T00:00:00+00:00",
+            "arxiv_url": "",
+            "pdf_url": "",
+            "doi": ""
         },
         {
             "id": 115,
@@ -696,7 +738,10 @@ def create_chinese_papers():
             "word_count": 250,
             "language": "Chinese",
             "keywords": "表外业务, 商业银行, 会计核算",
-            "published": "2025-11-08T00:00:00+00:00"
+            "published": "2025-11-08T00:00:00+00:00",
+            "arxiv_url": "",
+            "pdf_url": "",
+            "doi": ""
         },
         {
             "id": 116,
@@ -710,7 +755,10 @@ def create_chinese_papers():
             "word_count": 340,
             "language": "Chinese",
             "keywords": "民间借贷, 货币政策, VAR模型",
-            "published": "2025-01-25T00:00:00+00:00"
+            "published": "2025-01-25T00:00:00+00:00",
+            "arxiv_url": "",
+            "pdf_url": "",
+            "doi": ""
         },
         {
             "id": 117,
@@ -724,7 +772,10 @@ def create_chinese_papers():
             "word_count": 310,
             "language": "Chinese",
             "keywords": "金融科技, 商业银行, 盈利能力, 提升策略",
-            "published": "2025-01-30T00:00:00+00:00"
+            "published": "2025-01-30T00:00:00+00:00",
+            "arxiv_url": "",
+            "pdf_url": "",
+            "doi": ""
         },
         {
             "id": 118,
@@ -738,7 +789,10 @@ def create_chinese_papers():
             "word_count": 420,
             "language": "Chinese",
             "keywords": "中国股市, 股指溢价预测, 高维预测因子, 降维技术, 模型组合策略",
-            "published": "2025-06-15T00:00:00+00:00"
+            "published": "2025-06-15T00:00:00+00:00",
+            "arxiv_url": "",
+            "pdf_url": "",
+            "doi": ""
         },
         {
             "id": 119,
@@ -752,7 +806,10 @@ def create_chinese_papers():
             "word_count": 380,
             "language": "Chinese",
             "keywords": "国债利率期限结构, 统计机器学习模型, 宏观经济高维数据, 国债投资组合策略",
-            "published": "2023-12-20T00:00:00+00:00"
+            "published": "2023-12-20T00:00:00+00:00",
+            "arxiv_url": "",
+            "pdf_url": "",
+            "doi": ""
         },
         {
             "id": 120,
@@ -766,7 +823,10 @@ def create_chinese_papers():
             "word_count": 360,
             "language": "Chinese",
             "keywords": "稳定币, 信用机制, 区块链, 中心化稳定币, RWA",
-            "published": "2025-12-10T00:00:00+00:00"
+            "published": "2025-12-10T00:00:00+00:00",
+            "arxiv_url": "",
+            "pdf_url": "",
+            "doi": ""
         },
         {
             "id": 121,
@@ -780,7 +840,10 @@ def create_chinese_papers():
             "word_count": 330,
             "language": "Chinese",
             "keywords": "信息消费, 消费市场潜力, 城市绿色技术创新, 数字普惠金融, 扩大内需",
-            "published": "2025-03-15T00:00:00+00:00"
+            "published": "2025-03-15T00:00:00+00:00",
+            "arxiv_url": "",
+            "pdf_url": "",
+            "doi": ""
         },
         {
             "id": 122,
@@ -794,7 +857,10 @@ def create_chinese_papers():
             "word_count": 280,
             "language": "Chinese",
             "keywords": "商业银行, 发展规划, 战略规划",
-            "published": "2025-11-27T00:00:00+00:00"
+            "published": "2025-11-27T00:00:00+00:00",
+            "arxiv_url": "",
+            "pdf_url": "",
+            "doi": ""
         },
         {
             "id": 123,
@@ -808,7 +874,10 @@ def create_chinese_papers():
             "word_count": 300,
             "language": "Chinese",
             "keywords": "商业银行, 跨境供应链, 融资, 优势, 风险",
-            "published": "2026-02-15T00:00:00+00:00"
+            "published": "2026-02-15T00:00:00+00:00",
+            "arxiv_url": "",
+            "pdf_url": "",
+            "doi": ""
         },
         {
             "id": 124,
@@ -822,7 +891,10 @@ def create_chinese_papers():
             "word_count": 350,
             "language": "Chinese",
             "keywords": "动态体系论, 商业银行, 股权转让, 损害救济, 要素",
-            "published": "2025-10-20T00:00:00+00:00"
+            "published": "2025-10-20T00:00:00+00:00",
+            "arxiv_url": "",
+            "pdf_url": "",
+            "doi": ""
         },
         {
             "id": 125,
@@ -836,7 +908,10 @@ def create_chinese_papers():
             "word_count": 240,
             "language": "Chinese",
             "keywords": "商业银行, 绿色金融债券, 债券发行",
-            "published": "2025-12-17T00:00:00+00:00"
+            "published": "2025-12-17T00:00:00+00:00",
+            "arxiv_url": "",
+            "pdf_url": "",
+            "doi": ""
         }
     ]
     return chinese_papers
@@ -870,7 +945,7 @@ def load_research_papers():
     if 'category' in papers_df.columns:
         papers_df['category_clean'] = papers_df['category'].str.replace('_', ' ').str.title()
     
-    # Add missing fields for consistency
+    # Ensure all required fields exist
     papers_df['arxiv_url'] = papers_df.get('arxiv_url', '')
     papers_df['pdf_url'] = papers_df.get('pdf_url', '')
     papers_df['doi'] = papers_df.get('doi', '')
@@ -1025,22 +1100,32 @@ def display_research_library():
                     # Quick actions and links
                     st.markdown("#### 🔗 Quick Links")
                     
-                    # arXiv link
-                    if 'arxiv_url' in paper and paper['arxiv_url']:
-                        st.link_button("📄 arXiv", paper['arxiv_url'])
+                    # arXiv link - ONLY if URL exists and is not empty
+                    arxiv_url = paper.get('arxiv_url', '')
+                    if arxiv_url and isinstance(arxiv_url, str) and arxiv_url.strip() and arxiv_url.startswith('http'):
+                        st.link_button("📄 arXiv", arxiv_url)
+                    else:
+                        st.button("📄 arXiv (N/A)", disabled=True, help="arXiv link not available")
                     
-                    # PDF link
-                    if 'pdf_url' in paper and paper['pdf_url']:
-                        st.link_button("📥 PDF", paper['pdf_url'])
+                    # PDF link - ONLY if URL exists and is not empty
+                    pdf_url = paper.get('pdf_url', '')
+                    if pdf_url and isinstance(pdf_url, str) and pdf_url.strip() and pdf_url.startswith('http'):
+                        st.link_button("📥 PDF", pdf_url)
+                    else:
+                        st.button("📥 PDF (N/A)", disabled=True, help="PDF link not available")
                     
-                    # Search link
+                    # Search link - always available
                     search_url = f"https://scholar.google.com/scholar?q={paper.get('title', '').replace(' ', '+')}"
                     st.link_button("🔍 Search", search_url)
                     
                     # Additional info
                     st.markdown("---")
                     if 'keywords' in paper and paper['keywords']:
-                        st.caption(f"**Keywords:** {paper['keywords'][:50]}...")
+                        keywords_display = paper['keywords']
+                        if isinstance(keywords_display, str) and len(keywords_display) > 50:
+                            st.caption(f"**Keywords:** {keywords_display[:50]}...")
+                        else:
+                            st.caption(f"**Keywords:** {keywords_display}")
                     
                     # Classify this paper button
                     if st.button("🤖 Classify this paper", key=f"classify_{paper_id}"):
@@ -1414,6 +1499,9 @@ try:
 except ImportError:
     st.sidebar.warning("⚠️ Install pdfplumber: pip install pdfplumber")
     pdf_processor = None
+except Exception as e:
+    st.sidebar.error(f"❌ PDF processor error: {e}")
+    pdf_processor = None
 
 # ===== MAIN APP NAVIGATION =====
 st.sidebar.header("📚 Navigation")
@@ -1674,10 +1762,10 @@ with footer_cols[3]:
     st.markdown("[🐦 Twitter](https://twitter.com/streamlit)")
 
 with footer_cols[4]:
-    st.markdown(f"**Version 3.0** • {datetime.now().strftime('%Y-%m-%d')}")
+    st.markdown(f"**Version 3.1** • {datetime.now().strftime('%Y-%m-%d')}")
 
 st.caption(f"""
-Finance Research Classifier v3.0 | 
+Finance Research Classifier v3.1 | 
 Made with ❤️ for academic research | 
 50 research papers embedded (25 English + 25 Chinese)
 """)
