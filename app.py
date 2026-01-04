@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import sys
 import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
@@ -10,10 +9,6 @@ from datetime import datetime
 import time
 import re
 from collections import Counter
-import requests
-from bs4 import BeautifulSoup
-import jieba
-import jieba.analyse
 
 st.set_page_config(
     page_title="Finance Research Hub - 金融研究平台",
@@ -173,35 +168,6 @@ st.markdown("""
     .stTextInput > div > div > input:focus {
         border-color: #667eea;
         box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    }
-    
-    /* Language toggle */
-    .language-toggle {
-        display: flex;
-        gap: 8px;
-        margin-bottom: 20px;
-    }
-    
-    .lang-btn {
-        padding: 8px 16px;
-        border-radius: 8px;
-        border: 2px solid #e2e8f0;
-        background: white;
-        color: #64748b;
-        cursor: pointer;
-        font-size: 14px;
-        font-weight: 500;
-        transition: all 0.2s ease;
-    }
-    
-    .lang-btn.active {
-        background: #667eea;
-        color: white;
-        border-color: #667eea;
-    }
-    
-    .lang-btn:hover:not(.active) {
-        background: #f1f5f9;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -460,35 +426,20 @@ FINANCE_KEYWORD_DATABASE = {
     }
 }
 
-# Initialize jieba for Chinese text processing
-try:
-    jieba.initialize()
-except:
-    pass
-
 # ==================== UTILITY FUNCTIONS ====================
 def detect_language(text):
     """Detect if text is Chinese or English"""
     if not text:
         return "en"
     
-    # Check for Chinese characters
+    # Simple Chinese character detection
     zh_char_count = sum(1 for char in text if '\u4e00' <= char <= '\u9fff')
-    total_chars = len(text.replace(" ", ""))
+    total_chars = len(text.replace(" ", "").replace("\n", ""))
     
     if total_chars > 0 and zh_char_count / total_chars > 0.3:
         return "zh"
     else:
         return "en"
-
-def extract_keywords_chinese(text):
-    """Extract keywords from Chinese text using jieba"""
-    if not text:
-        return []
-    
-    # Use jieba for keyword extraction
-    keywords = jieba.analyse.extract_tags(text, topK=50, withWeight=False)
-    return keywords
 
 def extract_keywords_english(text):
     """Extract keywords from English text"""
@@ -549,7 +500,7 @@ def calculate_category_scores_bilingual(text, top_k=5):
         if weighted_score > 0:
             scores[category] = {
                 'score': weighted_score,
-                'confidence': min(100, weighted_score * 8),  # Adjusted scaling
+                'confidence': min(100, weighted_score * 8),
                 'matched_keywords': matched_keywords[:10],
                 'total_matches': len(matched_keywords),
                 'icon': data['icon'],
@@ -593,71 +544,6 @@ def enhanced_classify_with_confidence_bilingual(text, top_k=5):
     
     return results
 
-# ==================== CNKI SCRAPER ====================
-def search_cnki_papers(keyword, max_results=10):
-    """Search for papers on CNKI (simulated - would need actual API access)"""
-    # This is a mock function - in reality, you would need CNKI API access
-    # or use web scraping with proper authorization
-    
-    mock_cnki_papers = [
-        {
-            "title": "基于深度学习的股票价格预测模型研究",
-            "authors": ["张三", "李四", "王五"],
-            "abstract": "本文提出了一种基于深度学习的股票价格预测模型，结合LSTM和注意力机制，提高了预测精度。",
-            "year": 2024,
-            "source": "CNKI",
-            "keywords": ["深度学习", "股票价格预测", "LSTM", "注意力机制"],
-            "language": "zh"
-        },
-        {
-            "title": "ESG投资对中国上市公司绩效的影响研究",
-            "authors": ["赵六", "钱七"],
-            "abstract": "本文研究了ESG投资对中国上市公司财务绩效和市场价值的影响，发现ESG表现良好的公司具有更好的长期绩效。",
-            "year": 2023,
-            "source": "CNKI",
-            "keywords": ["ESG投资", "上市公司", "财务绩效", "市场价值"],
-            "language": "zh"
-        },
-        {
-            "title": "区块链技术在供应链金融中的应用研究",
-            "authors": ["孙八", "周九"],
-            "abstract": "本文探讨了区块链技术在供应链金融中的应用，分析了其对风险控制和效率提升的作用。",
-            "year": 2024,
-            "source": "CNKI",
-            "keywords": ["区块链", "供应链金融", "风险管理", "效率提升"],
-            "language": "zh"
-        },
-        {
-            "title": "中国股市波动率的预测模型比较研究",
-            "authors": ["吴十", "郑十一"],
-            "abstract": "本文比较了GARCH、EGARCH和TGARCH模型在中国股市波动率预测中的表现，发现EGARCH模型具有最佳预测效果。",
-            "year": 2023,
-            "source": "CNKI",
-            "keywords": ["波动率预测", "GARCH", "EGARCH", "中国股市"],
-            "language": "zh"
-        },
-        {
-            "title": "绿色债券定价的影响因素研究",
-            "authors": ["王十二", "李十三"],
-            "abstract": "本文分析了影响中国绿色债券定价的主要因素，包括信用评级、发行人特征和环境效益等。",
-            "year": 2024,
-            "source": "CNKI",
-            "keywords": ["绿色债券", "债券定价", "信用评级", "环境效益"],
-            "language": "zh"
-        }
-    ]
-    
-    # Filter by keyword (simulated)
-    if keyword:
-        filtered_papers = [
-            paper for paper in mock_cnki_papers 
-            if keyword in paper['title'] or keyword in ' '.join(paper['keywords'])
-        ]
-    else:
-        filtered_papers = mock_cnki_papers
-    
-    return filtered_papers[:max_results]
-
 # ==================== LOAD RESEARCH PAPERS ====================
 @st.cache_data
 def load_research_papers():
@@ -691,8 +577,35 @@ def load_research_papers():
         
         return papers_df, papers
     except Exception as e:
-        st.error(f"Error loading research papers: {e}")
-        return pd.DataFrame(), []
+        st.error(f"Error loading research papers: {str(e)[:100]}")
+        # Return mock data if file not found
+        return create_mock_data(), []
+
+def create_mock_data():
+    """Create mock data for demonstration"""
+    mock_data = {
+        'id': [1, 2, 3],
+        'title': [
+            "Deep Learning for Stock Price Prediction",
+            "基于深度学习的股票价格预测研究",
+            "Risk Management in Financial Markets"
+        ],
+        'authors': [
+            ["John Smith", "Jane Doe"],
+            ["张三", "李四"],
+            ["Robert Johnson"]
+        ],
+        'year': [2024, 2024, 2023],
+        'category': ['Computational Finance', 'Computational Finance', 'Risk Management'],
+        'abstract': [
+            "This paper explores deep learning techniques for stock price prediction using LSTM networks.",
+            "本文使用LSTM神经网络研究股票价格预测的深度学习技术。",
+            "An analysis of risk management strategies in volatile financial markets."
+        ],
+        'word_count': [150, 120, 180],
+        'arxiv_id': ['2401.001', '2401.002', '2301.001']
+    }
+    return pd.DataFrame(mock_data)
 
 papers_df, papers_list = load_research_papers()
 
@@ -706,17 +619,8 @@ def display_research_library():
             📚 Research Library | 研究文献库
         </h2>
         <p style="color: #64748b; font-size: 16px; margin-bottom: 24px;">
-            Browse finance research papers from arXiv and CNKI | 浏览arXiv和知网的金融研究论文
+            Browse finance research papers | 浏览金融研究论文
         </p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Language toggle
-    st.markdown("""
-    <div class="language-toggle">
-        <button class="lang-btn active" onclick="setLanguage('all')">🌍 All Languages</button>
-        <button class="lang-btn" onclick="setLanguage('en')">🇬🇧 English</button>
-        <button class="lang-btn" onclick="setLanguage('zh')">🇨🇳 中文</button>
     </div>
     """, unsafe_allow_html=True)
     
@@ -786,84 +690,114 @@ def display_research_library():
         
         st.markdown("</div>", unsafe_allow_html=True)
     
-    # CNKI Search Section
-    with st.expander("🔍 Search CNKI Database | 搜索知网数据库", expanded=False):
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            cnki_keyword = st.text_input(
-                "Enter Chinese keywords to search CNKI | 输入中文关键词搜索知网",
-                placeholder="例如：深度学习 金融预测",
-                key="cnki_search"
+    # Apply filters
+    filtered_df = papers_df.copy()
+    
+    if not papers_df.empty:
+        if search_query:
+            mask = (
+                filtered_df['title'].str.contains(search_query, case=False, na=False) |
+                filtered_df['abstract'].str.contains(search_query, case=False, na=False) |
+                filtered_df['authors'].apply(lambda x: search_query.lower() in str(x).lower() if x else False)
             )
-        with col2:
-            cnki_results_count = st.slider("Number of results | 结果数量", 1, 20, 5, key="cnki_results")
+            filtered_df = filtered_df[mask]
         
-        if st.button("🔍 Search CNKI | 搜索知网", key="search_cnki"):
-            with st.spinner("Searching CNKI database... | 正在搜索知网数据库..."):
-                cnki_papers = search_cnki_papers(cnki_keyword, cnki_results_count)
-                
-                if cnki_papers:
-                    st.success(f"Found {len(cnki_papers)} papers from CNKI | 从知网找到{len(cnki_papers)}篇论文")
-                    
-                    for paper in cnki_papers:
-                        st.markdown(f"""
-                        <div class="paper-item" style="border-left-color: #ef4444;">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
-                                <div style="flex: 1;">
-                                    <div class="paper-title">
-                                        <span style="color: #ef4444; margin-right: 8px;">🇨🇳</span>
-                                        {paper['title']}
-                                    </div>
-                                    <div class="paper-authors">
-                                        👥 {', '.join(paper['authors'])}
-                                    </div>
-                                </div>
-                                <div style="text-align: right; min-width: 120px;">
-                                    <span class="badge badge-primary" style="background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca;">
-                                        CNKI
-                                    </span>
-                                </div>
-                            </div>
-                            
-                            <div style="display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;">
-                                <span class="badge badge-secondary">
-                                    📅 {paper['year']}
-                                </span>
-                                <span class="badge badge-secondary">
-                                    🏷️ {', '.join(paper['keywords'][:3])}
-                                </span>
-                            </div>
-                            
-                            <div class="paper-abstract">
-                                <div style="font-weight: 600; color: #475569; margin-bottom: 8px; font-size: 13px;">
-                                    摘要 | ABSTRACT
-                                </div>
-                                {paper['abstract']}
-                            </div>
-                            
-                            <div style="display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap;">
-                                <button onclick="classifyCNKIPaper('{paper['title'].replace("'", "\\'")}', '{paper['abstract'].replace("'", "\\'")}')" style="
-                                    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-                                    color: white;
-                                    border: none;
-                                    padding: 6px 16px;
-                                    border-radius: 8px;
-                                    font-size: 13px;
-                                    font-weight: 500;
-                                    cursor: pointer;
-                                    display: inline-flex;
-                                    align-items: center;
-                                    gap: 6px;
-                                    transition: all 0.2s ease;
-                                " onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(239, 68, 68, 0.3)'"
-                                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
-                                    🤖 分类此论文
-                                </button>
-                            </div>
+        if 'category' in filtered_df.columns and selected_category != "All Categories | 所有类别":
+            # Extract just the category name before the pipe
+            category_name = selected_category.split(' | ')[0]
+            filtered_df = filtered_df[filtered_df['category'] == category_name]
+        
+        if language_filter == "English | 英文":
+            filtered_df = filtered_df[filtered_df['language'] == 'en']
+        elif language_filter == "Chinese | 中文":
+            filtered_df = filtered_df[filtered_df['language'] == 'zh']
+    
+    # Display Results
+    if filtered_df.empty:
+        st.markdown("""
+        <div class="card" style="text-align: center; padding: 48px 24px;">
+            <div style="font-size: 48px; margin-bottom: 16px;">🔍</div>
+            <h3 style="color: #475569; margin-bottom: 8px;">No papers found | 未找到论文</h3>
+            <p style="color: #94a3b8;">Try adjusting your search or filter criteria | 请调整搜索或筛选条件</p>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown(f"""
+        <div style="display: flex; justify-content: space-between; align-items: center; margin: 32px 0 16px 0;">
+            <div>
+                <h3 style="color: #1e293b; font-size: 20px; font-weight: 600; margin: 0;">
+                    📄 Found {len(filtered_df)} papers | 找到{len(filtered_df)}篇论文
+                </h3>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Display each paper
+        for idx, paper in filtered_df.iterrows():
+            language_icon = "🇨🇳" if paper.get('language') == 'zh' else "🇬🇧"
+            language_label = "中文" if paper.get('language') == 'zh' else "English"
+            
+            paper_html = f"""
+            <div class="paper-item">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                    <div style="flex: 1;">
+                        <div class="paper-title">
+                            <span style="color: #667eea; margin-right: 8px;">{language_icon}</span>
+                            {paper.get('title', 'Untitled')}
                         </div>
-                        """, unsafe_allow_html=True)
-                else:
-                    st.warning("No papers found on CNKI | 未在知网找到相关论文")
+                        <div class="paper-authors">
+                            👥 {', '.join(paper.get('authors', [])) if isinstance(paper.get('authors', []), list) else paper.get('authors', 'Unknown')}
+                        </div>
+                    </div>
+                    <div style="text-align: right; min-width: 120px;">
+                        <span class="badge badge-primary" style="background-color: {paper.get('category_color', '#e0e7ff')}20; color: {paper.get('category_color', '#3730a3')}; border: 1px solid {paper.get('category_color', '#3730a3')}40;">
+                            {paper.get('category', 'Unknown')}
+                        </span>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;">
+                    <span class="badge badge-secondary">
+                        {language_icon} {language_label}
+                    </span>
+                    <span class="badge badge-secondary">
+                        📅 {paper.get('year', 'Unknown')}
+                    </span>
+                    <span class="badge badge-secondary">
+                        📝 {paper.get('word_count', 0)} words
+                    </span>
+                </div>
+                
+                <div class="paper-abstract">
+                    <div style="font-weight: 600; color: #475569; margin-bottom: 8px; font-size: 13px;">
+                        ABSTRACT | 摘要
+                    </div>
+                    {paper.get('abstract', 'No abstract available')}
+                </div>
+                
+                <div style="display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap;">
+                    <button onclick="classifyPaper('{paper.get('title', '').replace("'", "\\'")}', '{paper.get('abstract', '').replace("'", "\\'")}')" style="
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        border: none;
+                        padding: 6px 16px;
+                        border-radius: 8px;
+                        font-size: 13px;
+                        font-weight: 500;
+                        cursor: pointer;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 6px;
+                        transition: all 0.2s ease;
+                    " onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.3)'"
+                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                        🤖 Classify | 分类
+                    </button>
+                </div>
+            </div>
+            """
+            
+            st.markdown(paper_html, unsafe_allow_html=True)
 
 # ==================== ENHANCED CLASSIFIER ====================
 def display_classification_results(top_results, paper_title="", abstract_text=""):
@@ -1202,16 +1136,6 @@ if st.sidebar.button("🔄 Refresh Data | 刷新数据", use_container_width=Tru
     st.cache_data.clear()
     st.rerun()
 
-if st.sidebar.button("📥 Export All Papers | 导出所有论文", use_container_width=True):
-    if not papers_df.empty:
-        csv = papers_df.to_csv(index=False)
-        st.sidebar.download_button(
-            label="Download CSV | 下载CSV",
-            data=csv,
-            file_name=f"finance_papers_{datetime.now().strftime('%Y%m%d')}.csv",
-            mime="text/csv"
-        )
-
 # ==================== MAIN APP ROUTING ====================
 if app_mode == "📚 Research Library":
     display_research_library()
@@ -1220,17 +1144,41 @@ elif app_mode == "🤖 Enhanced Classifier":
     display_enhanced_classifier()
     
 elif app_mode == "📊 Analytics":
-    # Simple analytics placeholder
+    # Simple analytics
     st.markdown("""
     <div style="margin-bottom: 32px;">
         <h2 style="color: #1e293b; font-size: 28px; font-weight: 700; margin-bottom: 8px;">
             📊 Analytics Dashboard | 分析仪表板
         </h2>
         <p style="color: #64748b; font-size: 16px; margin-bottom: 24px;">
-            Coming soon with bilingual statistics... | 即将推出双语统计功能...
+            Database Statistics | 数据库统计
         </p>
     </div>
     """, unsafe_allow_html=True)
+    
+    if not papers_df.empty:
+        # Category distribution
+        st.markdown("### 📈 Category Distribution | 类别分布")
+        if 'category' in papers_df.columns:
+            category_counts = papers_df['category'].value_counts().reset_index()
+            category_counts.columns = ['Category', 'Count']
+            
+            fig = px.pie(category_counts, values='Count', names='Category', 
+                        title="Papers by Category | 按类别分布的论文")
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # Language distribution
+        st.markdown("### 🌍 Language Distribution | 语言分布")
+        if 'language' in papers_df.columns:
+            language_counts = papers_df['language'].value_counts().reset_index()
+            language_counts.columns = ['Language', 'Count']
+            language_counts['Language'] = language_counts['Language'].map({'en': 'English', 'zh': 'Chinese'})
+            
+            fig = px.bar(language_counts, x='Language', y='Count',
+                        title="Papers by Language | 按语言分布的论文",
+                        color='Language',
+                        color_discrete_map={'English': '#667eea', 'Chinese': '#ef4444'})
+            st.plotly_chart(fig, use_container_width=True)
 
 # ==================== FOOTER ====================
 st.markdown("""
@@ -1240,7 +1188,7 @@ st.markdown("""
     </div>
     <div style="display: flex; justify-content: center; gap: 24px; margin-top: 16px;">
         <span style="color: #64748b; font-size: 13px;">🌍 Support: English & Chinese</span>
-        <span style="color: #64748b; font-size: 13px;">📚 Sources: arXiv & CNKI</span>
+        <span style="color: #64748b; font-size: 13px;">📚 Sources: arXiv & Local Database</span>
         <span style="color: #64748b; font-size: 13px;">🤖 AI: Bilingual Classification</span>
     </div>
 </div>
@@ -1273,7 +1221,7 @@ function classifyPaper(title, abstract) {
             <div style="flex: 1;">
                 <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">Classification Started | 分类开始</div>
                 <div style="font-size: 12px; opacity: 0.9; line-height: 1.4;">
-                    Redirecting to classifier with paper:<br>
+                    Analyzing paper with bilingual AI...<br>
                     <strong>${title.substring(0, 50)}...</strong>
                 </div>
             </div>
@@ -1281,59 +1229,7 @@ function classifyPaper(title, abstract) {
     `;
     document.body.appendChild(notification);
     
-    // Store paper info
-    localStorage.setItem('paper_to_classify', JSON.stringify({
-        title: title,
-        abstract: abstract,
-        timestamp: new Date().toISOString()
-    }));
-    
-    setTimeout(() => {
-        notification.style.animation = 'slideOut 0.3s ease';
-        setTimeout(() => notification.remove(), 300);
-    }, 3000);
-}
-
-function classifyCNKIPaper(title, abstract) {
-    // Create CNKI-specific notification
-    const notification = document.createElement('div');
-    notification.innerHTML = `
-        <div style="
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-            color: white;
-            padding: 16px 24px;
-            border-radius: 12px;
-            box-shadow: 0 8px 30px rgba(239, 68, 68, 0.3);
-            z-index: 9999;
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            animation: slideIn 0.3s ease;
-            max-width: 400px;
-        ">
-            <div style="font-size: 24px;">🇨🇳</div>
-            <div style="flex: 1;">
-                <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">CNKI论文分类开始</div>
-                <div style="font-size: 12px; opacity: 0.9; line-height: 1.4;">
-                    正在使用双语AI分类知网论文:<br>
-                    <strong>${title.substring(0, 50)}...</strong>
-                </div>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(notification);
-    
-    // Store CNKI paper info
-    localStorage.setItem('cnki_paper_to_classify', JSON.stringify({
-        title: title,
-        abstract: abstract,
-        source: 'CNKI',
-        timestamp: new Date().toISOString()
-    }));
-    
+    // Simulate redirect to classifier
     setTimeout(() => {
         notification.style.animation = 'slideOut 0.3s ease';
         setTimeout(() => notification.remove(), 300);
