@@ -8,6 +8,54 @@ import io
 from datetime import datetime
 import os
 
+# ===== FINANCE TAXONOMY =====
+STANDARD_FINANCE_CATEGORIES = [
+    "Quantitative Finance",
+    "Corporate Finance",
+    "Banking",
+    "Risk Management",
+    "Asset Pricing",
+    "Financial Econometrics",
+    "Fintech",
+    "Cryptocurrency",
+    "Sustainable Finance",
+    "Financial Regulation",
+    "Investment Analysis",
+    "Financial Markets",
+    "养老金融",
+    "绿色金融",
+    "数字金融",
+    "金融科技",
+    "货币政策"
+]
+
+# Keyword-based deep classification
+CATEGORY_KEYWORDS = {
+    "Quantitative Finance": ["quantitative", "stochastic", "model", "pricing"],
+    "Risk Management": ["risk", "volatility", "var", "stress"],
+    "Fintech": ["fintech", "digital", "platform", "ai", "machine learning"],
+    "Cryptocurrency": ["crypto", "blockchain", "bitcoin", "token"],
+    "Banking": ["bank", "lending", "deposit", "credit"],
+    "Sustainable Finance": ["esg", "green", "sustainability", "climate"],
+    "养老金融": ["养老", "退休"],
+    "绿色金融": ["绿色", "碳"],
+    "数字金融": ["数字", "互联网"],
+    "金融科技": ["金融科技", "科技金融"],
+    "货币政策": ["monetary", "interest rate", "央行"]
+# ===== DEEP CLASSIFICATION FUNCTION =====
+def deep_classify_paper(title, abstract):
+    text = f"{title} {abstract}".lower()
+
+    for category, keywords in CATEGORY_KEYWORDS.items():
+        for kw in keywords:
+            if kw.lower() in text:
+                return category
+
+    return "Financial Markets"  # fallback
+
+}
+
+
 st.set_page_config(
     page_title="Finance Research Classifier",
     page_icon="📊",
@@ -41,7 +89,8 @@ def load_research_papers():
     """Load research papers from JSON file"""
     try:
         # Load from the JSON file you provided
-        json_file_path = "finance_research_papers.json"
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+	json_file_path = os.path.join(BASE_DIR, "finance_research_papers.json")
         
         # Debug: Check if file exists
         st.sidebar.write(f"🔍 Looking for file: {json_file_path}")
@@ -97,6 +146,15 @@ def load_research_papers():
         
         # Create DataFrame
         papers_df = pd.DataFrame(all_papers)
+# ===== DEEP CLASSIFICATION FOR LIBRARY =====
+	papers_df["category"] = papers_df.apply(
+    		lambda row: deep_classify_paper(
+        		row.get("title", ""),
+        		row.get("abstract", "")
+    		),
+    		axis=1
+		)
+
         
         # Debug: Show raw data info
         st.sidebar.write("📊 Data Load Debug:")
