@@ -42,19 +42,15 @@ CATEGORY_KEYWORDS = {
     "数字金融": ["数字", "互联网"],
     "金融科技": ["金融科技", "科技金融"],
     "货币政策": ["monetary", "interest rate", "央行"]
-# ===== DEEP CLASSIFICATION FUNCTION =====
+}
+
 def deep_classify_paper(title, abstract):
     text = f"{title} {abstract}".lower()
-
     for category, keywords in CATEGORY_KEYWORDS.items():
         for kw in keywords:
             if kw.lower() in text:
                 return category
-
-    return "Financial Markets"  # fallback
-
-}
-
+    return "Financial Markets"
 
 st.set_page_config(
     page_title="Finance Research Classifier",
@@ -84,68 +80,41 @@ def safe_link_button(label, url, key=None, help_text=None, disabled=False):
     return st.link_button(label, url, key=key)  # Fixed: removed help parameter
 
 # ===== LOAD RESEARCH PAPERS FROM JSON =====
-@st.cache_data
 def load_research_papers():
-    """Load research papers from JSON file"""
     try:
-        # Load from the JSON file you provided
         BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-	json_file_path = os.path.join(BASE_DIR, "finance_research_papers.json")
-        
-        # Debug: Check if file exists
-        st.sidebar.write(f"🔍 Looking for file: {json_file_path}")
-        st.sidebar.write(f"📁 Current directory: {os.getcwd()}")
-        
-        # First, try to load from file
-        if os.path.exists(json_file_path):
-            st.sidebar.success(f"✅ File found: {json_file_path}")
-            with open(json_file_path, 'r', encoding='utf-8') as f:
-                all_papers = json.load(f)
-            st.sidebar.success(f"✅ Loaded {len(all_papers)} papers from JSON file")
-        else:
-            # If file doesn't exist, show error and create sample data
-            st.sidebar.error(f"❌ File {json_file_path} not found!")
-            st.sidebar.info("Creating sample data for testing...")
-            
-            # Create minimal sample data
-            all_papers = [
-                {
-                    "id": 1,
-                    "title": "Sample English Paper 1",
-                    "authors": ["Author A", "Author B"],
-                    "year": 2025,
-                    "month": 1,
-                    "category": "Quantitative Finance",
-                    "abstract": "This is a sample abstract for testing.",
-                    "arxiv_url": "https://arxiv.org/abs/0000.00000",
-                    "pdf_url": "https://arxiv.org/pdf/0000.00000.pdf",
-                    "published": "2025-01-01T00:00:00Z",
-                    "word_count": 100,
-                    "language": "English",
-                    "source": "Sample Journal",
-                    "doi": ""
-                },
-                {
-                    "id": 100,
-                    "title": "样例中文论文 1",
-                    "authors": ["作者A", "作者B"],
-                    "year": 2024,
-                    "month": 1,
-                    "category": "养老金融",
-                    "abstract": "这是用于测试的中文摘要。",
-                    "arxiv_url": "",
-                    "pdf_url": "",
-                    "published": "2024-01-01T00:00:00Z",
-                    "word_count": 150,
-                    "language": "Chinese",
-                    "source": "中文期刊",
-                    "doi": ""
-                }
-            ]
-            st.sidebar.warning("Using sample data for testing")
-        
-        # Create DataFrame
+        json_file_path = os.path.join(BASE_DIR, "finance_research_papers.json")
+
+        if not os.path.exists(json_file_path):
+            st.error(f"❌ Missing file: {json_file_path}")
+            return pd.DataFrame(), []
+
+        with open(json_file_path, "r", encoding="utf-8") as f:
+            all_papers = json.load(f)
+
         papers_df = pd.DataFrame(all_papers)
+
+        papers_df["category"] = papers_df.apply(
+            lambda row: deep_classify_paper(
+                row.get("title", ""),
+                row.get("abstract", "")
+            ),
+            axis=1
+        )
+
+        papers_df["year"] = pd.to_numeric(
+            papers_df.get("year", 2025),
+            errors="coerce"
+        ).fillna(2025).astype(int)
+
+        papers_df["language"] = papers_df.get("language", "Unknown")
+
+        return papers_df, all_papers
+
+    except Exception as e:
+        st.error(f"❌ Load error: {e}")
+        return pd.DataFrame(), []
+
 # ===== DEEP CLASSIFICATION FOR LIBRARY =====
 	papers_df["category"] = papers_df.apply(
     		lambda row: deep_classify_paper(
