@@ -116,13 +116,13 @@ def load_research_papers():
         return pd.DataFrame(), []
 
 # ===== DEEP CLASSIFICATION FOR LIBRARY =====
-	papers_df["category"] = papers_df.apply(
-    		lambda row: deep_classify_paper(
-        		row.get("title", ""),
-        		row.get("abstract", "")
-    		),
-    		axis=1
-		)
+        papers_df["category"] = papers_df.apply(
+            lambda row: deep_classify_paper(
+                row.get("title", ""),
+                row.get("abstract", "")
+            ),
+            axis=1
+        )
 
         
         # Debug: Show raw data info
