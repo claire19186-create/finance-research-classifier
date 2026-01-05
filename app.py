@@ -115,6 +115,12 @@ def load_research_papers():
 
         papers_df = pd.DataFrame(all_papers)
 
+        # Fill NaN values for URL columns
+        for col in ["arxiv_url", "pdf_url", "doi"]:
+            if col in papers_df.columns:
+                papers_df[col] = papers_df[col].fillna("")
+
+        # Apply deep classification
         papers_df["category"] = papers_df.apply(
             lambda row: deep_classify_paper(
                 row.get("title", ""),
@@ -130,14 +136,16 @@ def load_research_papers():
 
         papers_df["language"] = papers_df.get("language", "Unknown")
 
+        # Debug info
+        st.sidebar.success(f"✅ Loaded {len(papers_df)} papers")
+        st.sidebar.write(f"📊 Categories: {papers_df['category'].nunique()}")
+        st.sidebar.write(f"🌐 Languages: {papers_df['language'].value_counts().to_dict()}")
+
         return papers_df, all_papers
 
     except Exception as e:
         st.error(f"❌ Load error: {e}")
         return pd.DataFrame(), []
-for col in ["arxiv_url", "pdf_url", "doi"]:
-    if col in papers_df.columns:
-        papers_df[col] = papers_df[col].fillna("")
 
 
 # ===== DEEP CLASSIFICATION FOR LIBRARY =====
