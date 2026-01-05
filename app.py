@@ -73,32 +73,29 @@ with col3:
 # ===== SAFE LINK BUTTON FUNCTION =====
 def safe_link_button(label, url, key=None):
     """
-    Absolutely safe wrapper for st.link_button
-    Prevents Streamlit crash when url is None / NaN / empty
+    Safe wrapper for Streamlit link button
+    Compatible with older Streamlit + Python 3.13
     """
-    # pandas NaN check
     if url is None:
-        st.button(label, disabled=True, key=key)
+        st.button(label, disabled=True)
         return
 
-    # convert to string safely
     try:
         url = str(url).strip()
     except Exception:
-        st.button(label, disabled=True, key=key)
+        st.button(label, disabled=True)
         return
 
-    # empty or invalid URL
     if url == "" or url.lower() == "nan":
-        st.button(label, disabled=True, key=key)
+        st.button(label, disabled=True)
         return
 
     if not (url.startswith("http://") or url.startswith("https://")):
-        st.button(label, disabled=True, key=key)
+        st.button(label, disabled=True)
         return
 
-    # SAFE call
-    st.link_button(label, url, key=key)
+    # ❌ KHÔNG truyền key vào link_button
+    st.link_button(label, url)
 
 # ===== LOAD RESEARCH PAPERS FROM JSON =====
 def load_research_papers():
@@ -1006,5 +1003,5 @@ st.caption(f"""
 Finance Research Classifier v4.0 | 
 Made with ❤️ for academic research | 
 {len(papers_df)} research papers embedded | 
-All errors fixed
+All errors fixedF
 """)
