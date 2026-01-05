@@ -71,13 +71,34 @@ with col3:
     st.markdown(f"**Numpy** {np.__version__}")
 
 # ===== SAFE LINK BUTTON FUNCTION =====
-def safe_link_button(label, url, key=None, help_text=None, disabled=False):
+def safe_link_button(label, url, key=None):
     """
-    Safe wrapper for st.link_button that handles empty/invalid URLs
+    Absolutely safe wrapper for st.link_button
+    Prevents Streamlit crash when url is None / NaN / empty
     """
-    if not url or not isinstance(url, str) or not url.strip() or not url.startswith(('http://', 'https://')):
-        return st.button(label, disabled=True, key=key, help=help_text or "Link not available")
-    return st.link_button(label, url, key=key)  # Fixed: removed help parameter
+    # pandas NaN check
+    if url is None:
+        st.button(label, disabled=True, key=key)
+        return
+
+    # convert to string safely
+    try:
+        url = str(url).strip()
+    except Exception:
+        st.button(label, disabled=True, key=key)
+        return
+
+    # empty or invalid URL
+    if url == "" or url.lower() == "nan":
+        st.button(label, disabled=True, key=key)
+        return
+
+    if not (url.startswith("http://") or url.startswith("https://")):
+        st.button(label, disabled=True, key=key)
+        return
+
+    # SAFE call
+    st.link_button(label, url, key=key)
 
 # ===== LOAD RESEARCH PAPERS FROM JSON =====
 def load_research_papers():
@@ -114,6 +135,10 @@ def load_research_papers():
     except Exception as e:
         st.error(f"❌ Load error: {e}")
         return pd.DataFrame(), []
+for col in ["arxiv_url", "pdf_url", "doi"]:
+    if col in papers_df.columns:
+        papers_df[col] = papers_df[col].fillna("")
+
 
 # ===== DEEP CLASSIFICATION FOR LIBRARY =====
         papers_df["category"] = papers_df.apply(
