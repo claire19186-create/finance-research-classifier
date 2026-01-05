@@ -73,29 +73,45 @@ with col3:
 # ===== SAFE LINK BUTTON FUNCTION =====
 def safe_link_button(label, url, key=None):
     """
-    Safe wrapper for Streamlit link button
-    Compatible with older Streamlit + Python 3.13
+    100% crash-proof link renderer
+    Works on all Streamlit + Python versions
     """
-    if url is None:
-        st.button(label, disabled=True)
+    if not url:
+        st.button(label, disabled=True, key=key)
         return
 
     try:
         url = str(url).strip()
     except Exception:
-        st.button(label, disabled=True)
+        st.button(label, disabled=True, key=key)
         return
 
     if url == "" or url.lower() == "nan":
-        st.button(label, disabled=True)
+        st.button(label, disabled=True, key=key)
         return
 
-    if not (url.startswith("http://") or url.startswith("https://")):
-        st.button(label, disabled=True)
+    if not url.startswith(("http://", "https://")):
+        st.button(label, disabled=True, key=key)
         return
 
-    # ❌ KHÔNG truyền key vào link_button
-    st.link_button(label, url)
+    # ✅ DÙNG markdown link – KHÔNG DÙNG link_button
+    st.markdown(
+        f"""
+        <a href="{url}" target="_blank">
+            <button style="
+                width:100%;
+                padding:0.5rem;
+                border-radius:6px;
+                border:1px solid #ccc;
+                background-color:#f0f2f6;
+                cursor:pointer;
+            ">
+                {label}
+            </button>
+        </a>
+        """,
+        unsafe_allow_html=True
+    )
 
 # ===== LOAD RESEARCH PAPERS FROM JSON =====
 def load_research_papers():
