@@ -10,20 +10,34 @@ import os
 
 # ===== FINANCE TAXONOMY =====
 STANDARD_FINANCE_CATEGORIES = [
+    # Core Finance
     "Quantitative Finance",
     "Corporate Finance",
     "Banking",
     "Risk Management",
     "Asset Pricing",
     "Financial Econometrics",
-    "Fintech",
-    "Cryptocurrency",
-    "Sustainable Finance",
-    "Financial Regulation",
     "Investment Analysis",
     "Financial Markets",
+
+    # Technology
+    "Fintech",
+    "Digital Finance",
+    "Cryptocurrency",
+
+    # Sustainability
+    "Sustainable Finance",
+    "Green Finance",
+    "Climate Finance",
+
+    # Policy & Regulation
+    "Financial Regulation",
+    "Monetary Policy",
+
+    # Chinese Research Categories
     "养老金融",
     "绿色金融",
+    "气候金融",
     "数字金融",
     "金融科技",
     "货币政策"
@@ -31,25 +45,113 @@ STANDARD_FINANCE_CATEGORIES = [
 
 # Keyword-based deep classification
 CATEGORY_KEYWORDS = {
-    "Quantitative Finance": ["quantitative", "stochastic", "model", "pricing"],
-    "Risk Management": ["risk", "volatility", "var", "stress"],
-    "Fintech": ["fintech", "digital", "platform", "ai", "machine learning"],
-    "Cryptocurrency": ["crypto", "blockchain", "bitcoin", "token"],
-    "Banking": ["bank", "lending", "deposit", "credit"],
-    "Sustainable Finance": ["esg", "green", "sustainability", "climate"],
-    "养老金融": ["养老", "退休"],
-    "绿色金融": ["绿色", "碳"],
-    "数字金融": ["数字", "互联网"],
-    "金融科技": ["金融科技", "科技金融"],
-    "货币政策": ["monetary", "interest rate", "央行"]
+
+    # ===== Quantitative & Modeling =====
+    "Quantitative Finance": [
+        "quantitative", "stochastic", "pricing model", "ito",
+        "martingale", "numerical method",
+        "随机", "定价模型", "数值方法"
+    ],
+
+    "Asset Pricing": [
+        "asset pricing", "capm", "factor model",
+        "expected return", "risk premium",
+        "资产定价", "风险溢价", "因子模型"
+    ],
+
+    "Financial Econometrics": [
+        "econometric", "panel data", "time series",
+        "garch", "cointegration",
+        "计量经济", "面板数据", "时间序列", "协整"
+    ],
+
+    # ===== Corporate & Banking =====
+    "Corporate Finance": [
+        "corporate finance", "capital structure",
+        "dividend policy", "firm value",
+        "公司金融", "资本结构", "企业价值"
+    ],
+
+    "Banking": [
+        "bank", "commercial bank", "credit risk",
+        "loan", "deposit",
+        "银行", "信贷", "不良贷款"
+    ],
+
+    "Risk Management": [
+        "risk management", "var", "cvar",
+        "stress test", "volatility",
+        "风险管理", "压力测试", "波动率"
+    ],
+
+    # ===== Digital & Tech =====
+    "Fintech": [
+        "fintech", "financial technology",
+        "machine learning", "ai finance",
+        "金融科技", "人工智能金融"
+    ],
+
+    "Digital Finance": [
+        "digital finance", "platform finance",
+        "internet finance",
+        "数字金融", "互联网金融"
+    ],
+
+    "Cryptocurrency": [
+        "cryptocurrency", "bitcoin", "blockchain",
+        "defi", "smart contract",
+        "加密货币", "区块链"
+    ],
+
+    # ===== Sustainability =====
+    "Sustainable Finance": [
+        "sustainable finance", "esg",
+        "responsible investment",
+        "可持续金融", "责任投资"
+    ],
+
+    "Green Finance": [
+        "green finance", "green bond", "green credit",
+        "renewable energy finance",
+        "绿色金融", "绿色债券", "绿色信贷"
+    ],
+
+    "Climate Finance": [
+        "climate finance", "climate risk",
+        "carbon pricing", "carbon market",
+        "carbon emission",
+        "气候金融", "气候风险",
+        "碳定价", "碳交易", "碳排放"
+    ],
+
+    # ===== Policy =====
+    "Monetary Policy": [
+        "monetary policy", "interest rate",
+        "central bank",
+        "货币政策", "利率", "央行"
+    ],
+
+    # ===== Chinese-specific =====
+    "养老金融": [
+        "养老金融", "养老金", "退休"
+    ]
 }
 
 def deep_classify_paper(title, abstract):
     text = f"{title} {abstract}".lower()
+    scores = {}
+
     for category, keywords in CATEGORY_KEYWORDS.items():
+        score = 0
         for kw in keywords:
             if kw.lower() in text:
-                return category
+                score += 1
+        if score > 0:
+            scores[category] = score
+
+    if scores:
+        return max(scores, key=scores.get)
+
     return "Financial Markets"
 
 st.set_page_config(
@@ -71,6 +173,7 @@ with col3:
     st.markdown(f"**Numpy** {np.__version__}")
 
 # ===== SAFE LINK BUTTON FUNCTION =====
+st.write("SAFE LINK VERSION = HTML BUTTON v1")
 def safe_link_button(label, url, key=None):
     """
     100% crash-proof link renderer
