@@ -796,9 +796,43 @@ def classify_with_confidence(text, top_k=5, improve_confidence=True):
 
 # Function to display classification results (giữ nguyên)
 def display_classification_results(top_results, file_name="", abstract_text=""):
-    """Display classification results with enhanced visualization"""
-    # [giữ nguyên hàm này từ code trước]
-    pass
+    st.subheader("📊 Classification Results")
+
+    if not top_results:
+        st.warning("No classification results.")
+        return
+
+    # Table view
+    results_df = pd.DataFrame(top_results)
+    results_df["confidence"] = results_df["confidence"].round(2)
+
+    st.dataframe(
+        results_df[["category", "confidence"]],
+        use_container_width=True,
+        hide_index=True
+    )
+
+    # Bar chart
+    fig = px.bar(
+        results_df,
+        x="confidence",
+        y="category",
+        orientation="h",
+        title="Top Predicted Categories",
+        text="confidence"
+    )
+    fig.update_layout(yaxis=dict(autorange="reversed"))
+    st.plotly_chart(fig, use_container_width=True)
+
+    # Save to history
+    if "classification_history" in st.session_state:
+        top_pred = results_df.iloc[0]
+        st.session_state.classification_history.append({
+            "file_name": file_name,
+            "predicted_category": top_pred["category"],
+            "confidence": top_pred["confidence"],
+            "timestamp": datetime.now()
+        })
 
 # ===== PDF PROCESSOR =====
 pdf_available = False
